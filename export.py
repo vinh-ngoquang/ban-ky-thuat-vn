@@ -259,6 +259,7 @@ def main():
             for r in ("risk_on", "neutral", "risk_off")],
     }
     report["thongAlt"] = thong_long(d, m)
+    report["potential"] = potential_report(d, m)
     code = {"risk_on": 1, "neutral": 0, "risk_off": -1}
     market = {
         "dates": day, "comp": clean(m["comp"], 2), "ma50": clean(m["ma50"], 2), "ma200": clean(m["ma200"], 2),
@@ -354,6 +355,65 @@ def thong_long(d, m):
     rand = ev[(ev.setup == "random") & ev["complete"]]
     return {"stop": 3, "target": 3, "hold": 60, "thong": block(ev[ev.setup == "thong"], rand),
             "thong4": block(ev[ev.setup == "thong4"], rand), "random": block(rand, rand)}
+
+
+def potential_report(d, m):
+    """Danh sách mã tiềm năng hôm nay và phép thử danh mục 10 mã điểm cao nhất."""
+    t = len(d["c"]) - 1
+    syms = list(d["c"].columns)
+    H, L, C, V = (d[k].to_numpy() for k in ("h", "l", "c", "v"))
+    bonus_key = {v: k for k, v in E.POT_BONUS.items()}
+    rows = []
+    for j, s in enumerate(syms):
+        pts = d["pot"].iat[t, j]
+        if not np.isfinite(pts):
+            continue
+        cell = E.thong_cell(d, t, j, E.THONG_WINDOW)
+        checks = [bool(d["t1"].iat[t, j]), bool(d["t2"].iat[t, j]), bool(d["t3"].iat[t, j]),
+                  bool(cell and E.base_ok(cell)), bool(cell and E.poc_rising(cell))]
+        idx = np.flatnonzero(np.isfinite(C[:, j]))
+        atr = float(d["atr"].iat[t, j])
+        near = levels(H[idx, j], L[idx, j], C[idx, j], V[idx, j], atr)
+        res = min((x["price"] for x in near if x["kind"] == "res"), default=None)
+        sup = max((x["price"] for x in near if x["kind"] == "sup"), default=None)
+        bonus = float(d["pot_bonus"].iat[t, j])
+        fired = [k for k in E.POT_BONUS if bool(d["signals"][k].iloc[-E.POT_SIGNAL_WINDOW:, j].any())]
+        rows.append({"s": s, "pts": num(pts, 1), "grade": "A" if pts >= E.POT_A else "B" if pts >= E.POT_B else "C",
+                     "bonus": num(bonus, 0), "signals": fired, "checks": checks, "res": res, "sup": sup,
+                     "stop": num(E.STOP_ATR * atr / C[t, j])})
+    rows.sort(key=lambda r: -r["pts"])
+
+    c, o, liquid, pot = d["c"], d["o"], d["liquid"], d["pot"]
+    dates = c.index
+    nav, base, when, held = [1.0], [1.0], [], []
+    hold = set()
+    for i in range(210, len(dates) - 1, 20):
+        ranked = pot.iloc[i].dropna().sort_values(ascending=False)
+        top = list(ranked.index[:10])
+        end = min(i + 21, len(dates) - 1)
+        if end <= i + 1:
+            continue
+        churn = (1 - len(set(top) & hold) / len(top)) if top else (1.0 if hold else 0.0)
+        r = (c[top].iloc[end] / o[top].iloc[i + 1] - 1).mean() if top else 0.0
+        uni = list(liquid.iloc[i][liquid.iloc[i]].index)
+        ru = (c[uni].iloc[end] / o[uni].iloc[i + 1] - 1).mean()
+        nav.append(nav[-1] * (1 + r - churn * E.COST))
+        base.append(base[-1] * (1 + ru))
+        when.append(str(dates[end].date()))
+        held.append(len(top))
+        hold = set(top)
+    drawdown = lambda x: float((pd.Series(x) / pd.Series(x).cummax() - 1).min())
+    kept = (E.STOP_ATR, E.TARGET_R, E.MAX_HOLD)
+    E.STOP_ATR, E.TARGET_R, E.MAX_HOLD = 3.0, 3.0, 60
+    picked = {k: d["signals"][k] for k in ("pot_a", "pot_b", "random")}
+    ev, _ = E.simulate({**d, "signals": picked}, m)
+    E.STOP_ATR, E.TARGET_R, E.MAX_HOLD = kept
+    rand = ev[(ev.setup == "random") & ev["complete"]]
+    return {"rows": rows, "minScore": E.POT_MIN_SCORE, "maxExt": E.POT_MAX_EXT, "gradeA": E.POT_A, "gradeB": E.POT_B,
+            "thongPts": E.POT_THONG_PTS, "bonus": E.POT_BONUS, "window": E.THONG_WINDOW,
+            "long": {"a": block(ev[ev.setup == "pot_a"], rand), "b": block(ev[ev.setup == "pot_b"], rand), "random": block(rand, rand)},
+            "portfolio": {"dates": when, "port": clean(nav[1:], 4), "base": clean(base[1:], 4), "ret": num(nav[-1] - 1), "baseRet": num(base[-1] - 1),
+                          "dd": num(drawdown(nav)), "baseDd": num(drawdown(base)), "periods": len(when), "avgHeld": num(np.mean(held), 1)}}
 
 
 def thong_table(d, syms):

@@ -13,6 +13,7 @@ CACHE = ROOT / "cache"
 
 MIN_ADV = 3.0          # tỷ đồng/phiên: ngưỡng thanh khoản để một mã được tính vào thị trường
 COST = 0.004           # phí mua + phí bán + thuế bán, khứ hồi
+MIN_RISK = 0.01        # bỏ lệnh có khoảng cắt lỗ dưới 1% giá vào
 STOP_ATR = 2.0         # cắt lỗ cách giá vào 2 ATR
 TARGET_R = 2.0         # chốt lời ở +2R
 MAX_HOLD = 20          # giữ tối đa 20 phiên
@@ -42,7 +43,19 @@ SETUPS = {
               "rule": "EMA xếp tầng, RSI trên 50, EMA50 cách EMA150 và EMA200 dưới 20%, nền tích lũy, POC tăng dần qua 3 đoạn."},
     "thong4": {"name": "Mẫu Thông, 4 tiêu chí đầu", "side": "long",
                "rule": "Như Mẫu Thông nhưng chưa yêu cầu POC tăng dần."},
+    "pot_a": {"name": "Mã tiềm năng hạng A", "side": "long",
+              "rule": "Qua cổng bắt buộc và Điểm kết hợp từ 75."},
+    "pot_b": {"name": "Mã tiềm năng hạng A và B", "side": "long",
+              "rule": "Qua cổng bắt buộc và Điểm kết hợp từ 60."},
 }
+
+# Mã tiềm năng: quy tắc được đặt trước khi xem kết quả, không chỉnh theo số kiểm chứng
+POT_MIN_SCORE = 60             # cổng: Điểm Bền tối thiểu
+POT_MAX_EXT = 4                # cổng: cách MA20 tối đa, tính theo ATR
+POT_A, POT_B = 75, 60          # ngưỡng hạng của Điểm kết hợp
+POT_THONG_PTS = 6              # điểm cho mỗi tiêu chí Thông
+POT_BONUS = {"leader": 20, "pullback": 10, "golden": 10}
+POT_SIGNAL_WINDOW = 3          # tín hiệu còn hiệu lực trong 3 phiên
 
 # Bộ lọc "Phân tích của Thông"
 THONG_WINDOWS = (20, 30, 40)   # số phiên của mỗi đoạn nền; POC so sánh qua 3 đoạn liên tiếp
@@ -329,7 +342,30 @@ def signals(d):
         sig = sig.fillna(False) & d["liquid"] & d["traded"]
         out[name] = _first_in(sig, COOLDOWN)
     d["signals"] = out
+    points = potential(d)
+    for name, level in (("pot_a", POT_A), ("pot_b", POT_B)):
+        out[name] = _first_in((points >= level) & d["traded"], COOLDOWN)
     return out
+
+
+def potential(d):
+    """Điểm kết hợp cho mã qua cổng bắt buộc. Trả về bảng điểm, ngoài cổng là NaN."""
+    gate = (d["liquid"] & (d["score"] >= POT_MIN_SCORE) & d["trend"].isin(["strong", "up"]) & (d["ext"] <= POT_MAX_EXT))
+    # thưởng tín hiệu: lấy mức cao nhất đang còn hiệu lực
+    bonus = pd.DataFrame(0.0, index=gate.index, columns=gate.columns)
+    for key, pts in POT_BONUS.items():
+        alive = d["signals"][key].astype(float).rolling(POT_SIGNAL_WINDOW, min_periods=1).max() > 0
+        bonus = bonus.where(~alive | (bonus >= pts), float(pts))
+    t123 = d["t1"].astype(int) + d["t2"].astype(int) + d["t3"].astype(int)
+    points = (d["score"] * 0.5 + t123 * POT_THONG_PTS + bonus).where(gate)
+    extra = np.zeros(points.shape)
+    for t, j in zip(*np.nonzero(gate.to_numpy())):
+        m = thong_cell(d, t, j, THONG_WINDOW)
+        if m:
+            extra[t, j] = (int(base_ok(m)) + int(poc_rising(m))) * POT_THONG_PTS   # int: cộng hai bool numpy cho ra 1, không phải 2
+    d["pot_bonus"] = bonus
+    d["pot"] = points + extra
+    return d["pot"]
 
 
 def simulate(d, m):
@@ -357,6 +393,8 @@ def simulate(d, m):
             if gap >= limit[j] - 0.005:            # mở cửa kịch trần: coi như không mua được
                 continue
             risk = STOP_ATR * ATR[t, j]
+            if risk / entry < MIN_RISK:            # giá đứng im, R gần 0 làm méo mọi thống kê
+                continue
             stop, target = entry - risk, entry + TARGET_R * risk
             first_sell = t + 1 + SETTLE
             last = min(t + 1 + MAX_HOLD, T - 1)

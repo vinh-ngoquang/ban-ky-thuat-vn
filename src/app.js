@@ -17,6 +17,7 @@
   const state = {
     tab: 'today', sym: null, tf: 'd', chart: null, range: 252,
     th: Object.assign(thDefaults(), save.get('th', {})), thSort: { key: 'count', dir: -1 }, thData: null,
+    pot: Object.assign({ grade: '', sector: '', adv: 3, q: '' }, save.get('pot', {})), potSort: { key: 'pts', dir: -1 },
     preset: save.get('preset', 'stable'),
     filters: Object.assign({ ex: '', sector: '', adv: 3, score: 0, trend: '', q: '' }, save.get('filters', {})),
     sort: { key: 'score', dir: -1 }, sel: 0, list: [],
@@ -973,6 +974,125 @@
     }));
   }
 
+  /* ---- màn hình Mã tiềm năng ---- */
+  const potDefaults = () => ({ grade: '', sector: '', adv: 3, q: '' });
+  const GRADE_TONE = { A: 'good', B: 'warn', C: '' };
+  const GRADE_NAME = { A: 'Hạng A', B: 'Hạng B', C: 'Theo dõi' };
+
+  function potRows() {
+    const o = state.pot;
+    const q = fold(o.q.trim());
+    const rows = store.report.potential.rows.map((p) => ({ p, u: store.bySym.get(p.s) })).filter(({ p, u }) => u
+      && (!o.grade || p.grade === o.grade) && (!o.sector || u.sector === o.sector) && (u.adv || 0) >= o.adv && (!q || u.key.includes(q)));
+    const { key, dir } = state.potSort;
+    const room = ({ p, u }) => (isNum(p.res) ? p.res / u.px - 1 : null);
+    const val = (x) => ({ pts: x.p.pts, s: x.u.s, chg: x.u.chg, score: x.u.score, thong: x.p.checks.filter(Boolean).length, ext: x.u.ext, room: room(x), stop: x.p.stop, adv: x.u.adv }[key]);
+    return rows.sort((a, b) => {
+      const x = val(a), y = val(b);
+      if (x == null) return y == null ? 0 : 1;
+      if (y == null) return -1;
+      return (typeof x === 'string' ? x.localeCompare(y) : x - y) * dir;
+    });
+  }
+
+  function renderPotential() {
+    const R = store.report, P = R.potential, o = state.pot;
+    const A = C.setup('pot_a'), B = C.setup('pot_b'), rand = C.setup('random');
+    const n = store.market.dates.length - 1;
+    const reg = { 1: 'risk_on', 0: 'neutral', '-1': 'risk_off' }[store.market.regime[n]];
+    const here = A.regime[reg];
+    const countA = P.rows.filter((x) => x.grade === 'A').length, countB = P.rows.filter((x) => x.grade === 'B').length;
+    const sectors = [...new Set(P.rows.map((x) => store.bySym.get(x.s)?.sector))].filter(Boolean).sort((a, b) => a.localeCompare(b, 'vi'));
+    const row = (name, a, b) => `<tr><td class="l">${esc(name)}</td><td class="num">${fmt.n(a.n)}</td><td class="num">${fmt.pctAbs(a.win, 0)}</td><td class="num ${toneOf(a.exp)}">${fmt.r(a.exp)}</td><td class="num ${toneOf(a.ret)}">${fmt.pct(a.ret)}</td>
+      <td class="num">${fmt.n(b.n)}</td><td class="num">${fmt.pctAbs(b.win, 0)}</td><td class="num ${toneOf(b.exp)}">${fmt.r(b.exp)}</td><td class="num ${toneOf(b.ret)}">${fmt.pct(b.ret)}</td></tr>`;
+    const F = P.portfolio;
+    view().innerHTML = `<div class="view">
+      <section class="lede" id="tiem-nang-tom-tat">
+        <h1>${countA ? `${countA} mã hạng A, ${countB} mã hạng B` : `Chưa có mã hạng A, ${countB} mã hạng B`}</h1>
+        <p>${countA ? 'Hạng A là nhóm có kết quả lịch sử tốt nhất của công cụ.' : 'Hạng A không xuất hiện mỗi ngày. Khi chưa có, hạng B và Theo dõi là danh sách để chuẩn bị, chưa phải tín hiệu mạnh.'} ${fmt.n(P.rows.length)} mã đang qua cổng bắt buộc.</p>
+      </section>
+      <section class="pot-rules" aria-label="Cách chấm">
+        <div class="card"><h2>1. Cổng bắt buộc</h2><p class="note">Thanh khoản từ ${fmt.n(R.minAdv)} tỷ/phiên, Điểm Bền từ ${P.minScore}, xu hướng Tăng hoặc Tăng mạnh, giá cách MA20 không quá ${P.maxExt} ATR.</p></div>
+        <div class="card"><h2>2. Điểm kết hợp</h2><p class="note">50% Điểm Bền, cộng ${P.thongPts} điểm cho mỗi tiêu chí Thông đạt, cộng thưởng tín hiệu trong 3 phiên: Dẫn dắt +${P.bonus.leader}, Kéo về hoặc Giao cắt vàng +${P.bonus.pullback}.</p></div>
+        <div class="card"><h2>3. Xếp hạng</h2><p class="note">Hạng A từ ${P.gradeA} điểm, hạng B từ ${P.gradeB} điểm, còn lại là Theo dõi.</p></div>
+      </section>
+      <section class="card" id="tiem-nang-bang">
+        <div class="filters">
+          <label>Hạng <select id="pot-grade"><option value="">Tất cả</option>${['A', 'B', 'C'].map((g) => `<option value="${g}" ${o.grade === g ? 'selected' : ''}>${GRADE_NAME[g]}</option>`).join('')}</select></label>
+          <label>Ngành <select id="pot-sector"><option value="">Tất cả</option>${sectors.map((x) => `<option ${o.sector === x ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select></label>
+          <label>GTGD từ <input id="pot-adv" type="number" min="0" step="1" value="${o.adv}"> tỷ</label>
+          <label><input id="pot-q" type="search" placeholder="Lọc theo mã, tên" value="${esc(o.q)}"></label>
+          <button class="icon-btn" id="pot-reset">Đặt lại</button>
+          <span class="note" id="pot-count" aria-live="polite"></span>
+        </div>
+        <div class="table-wrap" id="pot-table" tabindex="0"></div>
+        <p class="note" style="margin-top:8px">Dấu kiểm ở cột Tới kháng cự nghĩa là kháng cự gần nhất xa hơn mục tiêu 2R. Bấm một dòng để mở biểu đồ với EMA và POC.</p>
+      </section>
+      <div class="grid-eq">
+        <section class="card" id="tiem-nang-bang-chung">
+          <div class="card-head"><h2>Hạng này từng hiệu quả ra sao</h2><span>${evChip(A.all, A.late)}</span></div>
+          <div class="table-wrap ev-table" style="max-height:none"><table><thead>
+            <tr><th class="l"></th><th colspan="4">Giữ ngắn: ${fmt.n(R.stopAtr)} ATR, ${fmt.n(R.targetR)}R, ${R.hold} phiên</th><th colspan="4">Giữ dài: 3 ATR, 3R, 60 phiên</th></tr>
+            <tr><th class="l">Mẫu</th><th>Lệnh</th><th>Thắng</th><th>Kỳ vọng</th><th>Lãi TB</th><th>Lệnh</th><th>Thắng</th><th>Kỳ vọng</th><th>Lãi TB</th></tr></thead><tbody>
+            ${row('Hạng A', A.all, P.long.a)}${row('Hạng A và B', B.all, P.long.b)}${row('Ngẫu nhiên', rand.all, P.long.random)}
+          </tbody></table></div>
+          <div class="alerts">
+            <div class="alert">${ICON.warn}<span>Hạng A vượt ngẫu nhiên ${fmt.r(A.all.lift)} (khoảng 90%: ${fmt.n(A.all.liftLo, 2)} … ${fmt.n(A.all.liftHi, 2)}). Giai đoạn trước ${fmt.r(A.early.exp)}, 250 phiên cuối ${fmt.r(A.late.exp)}.</span></div>
+            <div class="alert">${ICON.warn}<span>Trong trạng thái ${esc(REGIME[store.market.regime[n]])} hiện tại: ${fmt.n(here.n)} lệnh, kỳ vọng ${fmt.r(here.exp)}. Riêng thị trường Trung tính là ${fmt.r(A.regime.neutral.exp)}.</span></div>
+            <div class="alert">${ICON.warn}<span>Thắng ${fmt.pctAbs(A.all.win, 0)} nghĩa là khoảng một nửa số lệnh vẫn thua. Quy tắc được ghép sau khi đã biết từng phần có ích nên kết quả có thể lạc quan.</span></div>
+          </div>
+        </section>
+        <section class="card" id="tiem-nang-danh-muc"><div class="card-head"><h2>Thử nắm giữ 10 mã điểm cao nhất</h2><span class="note">Đổi danh mục mỗi 20 phiên</span></div>
+          ${legend([['Danh mục, đã trừ phí', 'var(--fg)'], ['Mọi mã thanh khoản', 'var(--s-ma200)']])}
+          <div id="pot-nav"></div>
+          <p class="note" style="margin-top:6px">${fmt.pct(F.ret)} so với ${fmt.pct(F.baseRet)} của toàn thị trường, sụt giảm tối đa ${fmt.pct(F.dd, 0)} so với ${fmt.pct(F.baseDd, 0)}, qua ${F.periods} kỳ. Danh mục nhóm Điểm Bền trong tab Phương pháp đạt ${fmt.pct(R.portfolio.ret)} với sụt giảm ${fmt.pct(R.portfolio.dd, 0)}, nên ở cấp danh mục, phần kết hợp chưa cho thấy vượt trội.</p>
+        </section>
+      </div>
+      <p class="foot">Danh sách theo quy tắc từ giá và khối lượng, chưa xét báo cáo tài chính, tin tức hay sự kiện doanh nghiệp. Đây không phải khuyến nghị mua bán.</p>
+    </div>`;
+    const set = (k, v) => { state.pot[k] = v; save.set('pot', state.pot); drawPotential(); };
+    $('#pot-grade').addEventListener('change', (e) => set('grade', e.target.value));
+    $('#pot-sector').addEventListener('change', (e) => set('sector', e.target.value));
+    $('#pot-adv').addEventListener('input', (e) => set('adv', +e.target.value || 0));
+    $('#pot-q').addEventListener('input', (e) => set('q', e.target.value));
+    $('#pot-reset').addEventListener('click', () => { state.pot = potDefaults(); save.set('pot', state.pot); renderPotential(); });
+    drawPotential();
+    linePlot($('#pot-nav'), {
+      dates: F.dates, height: 200, fmtY: (v) => (isNum(v) ? (v > 0 ? '+' : '') + (v * 100).toFixed(0) + '%' : '–'), refLines: [{ v: 0 }],
+      series: [{ name: 'Mọi mã thanh khoản', values: F.base.map((v) => v - 1), color: 'var(--s-ma200)' }, { name: 'Danh mục 10 mã', values: F.port.map((v) => v - 1), color: 'var(--fg)', width: 2 }],
+    });
+  }
+
+  function drawPotential() {
+    const rows = potRows();
+    state.list = rows.map((x) => x.u.s);
+    $('#pot-count').textContent = `Hiện ${rows.length} mã`;
+    const box = $('#pot-table');
+    if (!rows.length) {
+      box.innerHTML = '<p class="empty">Không có mã nào khớp. Hãy giảm ngưỡng giá trị giao dịch hoặc chọn hạng khác.</p>';
+      return;
+    }
+    const heads = [['pts', 'Điểm', ''], [null, 'Hạng', 'l'], ['s', 'Mã', 'l'], [null, 'Giá', ''], ['chg', '% phiên', ''], ['score', 'Điểm Bền', ''], ['thong', 'Thông', 'l'], [null, 'Tín hiệu', 'l'], [null, 'Xu hướng', 'l'], ['ext', 'Cách MA20', ''], ['room', 'Tới kháng cự', 'l'], ['stop', 'Cắt lỗ 2 ATR', ''], ['adv', 'GTGD TB 20p', '']];
+    box.innerHTML = `<table><thead><tr>${heads.map(([k, t, c]) => {
+      const aria = k === state.potSort.key ? ` aria-sort="${state.potSort.dir > 0 ? 'ascending' : 'descending'}"` : '';
+      return `<th class="${c}"${aria}>${k ? `<button data-k="${k}">${esc(t)}</button>` : esc(t)}</th>`;
+    }).join('')}</tr></thead><tbody>${rows.map(({ p, u }) => {
+      const passed = p.checks.filter(Boolean).length;
+      const sig = p.signals.map((k) => chip(C.setup(k).name, k === 'leader' ? 'good' : '')).join(' ') || '<span class="muted">–</span>';
+      const room = isNum(p.res) ? p.res / u.px - 1 : null;
+      return `<tr class="go" data-sym="${esc(u.s)}" data-thong="1"><td class="num"><b>${fmt.n(p.pts)}</b></td><td class="l">${chip(GRADE_NAME[p.grade], GRADE_TONE[p.grade])}</td>
+        <td class="l"><span class="sym">${esc(u.s)}</span><span class="nm">${esc(u.short)}</span></td><td class="num">${fmt.px(u.px)}</td><td class="num ${toneOf(u.chg)}">${fmt.pct(u.chg)}</td><td>${scoreBar(u.score)}</td>
+        <td class="l"><span class="pips ${passed === 5 ? 'all' : ''}" aria-hidden="true">${p.checks.map((x) => `<i class="${x ? 'on' : ''}"></i>`).join('')}</span><span class="num">${passed}/5</span></td>
+        <td class="l">${sig}</td><td class="l">${trendChip(u.trend)}</td><td class="num">${fmt.n(u.ext, 1)} ATR</td>
+        <td class="l">${room == null ? '<span class="muted">Chưa rõ</span>' : mark(room >= 2 * p.stop, fmt.pct(room))}</td><td class="num">${fmt.pct(-p.stop)}</td><td class="num">${fmt.ty(u.adv)}</td></tr>`;
+    }).join('')}</tbody></table>`;
+    $$('th button', box).forEach((b) => b.addEventListener('click', () => {
+      const k = b.dataset.k;
+      state.potSort = state.potSort.key === k ? { key: k, dir: -state.potSort.dir } : { key: k, dir: k === 's' || k === 'ext' || k === 'stop' ? 1 : -1 };
+      drawPotential();
+    }));
+  }
+
   /* ---- màn hình Danh sách ---- */
   async function renderWatch() {
     const syms = Object.keys(state.wl).filter((s) => store.bySym.has(s));
@@ -1084,7 +1204,7 @@
       </div>
       <section class="card prose" id="gia-dinh" style="max-width:none"><h2>Giả định và giới hạn</h2><ul>
         <li><b>Khớp lệnh:</b> tín hiệu tại giá đóng cửa, mua ở giá mở cửa phiên sau, bỏ qua lệnh mở cửa sát trần. Bán sớm nhất sau 2 phiên theo T+2.</li>
-        <li><b>Thoát lệnh:</b> cắt lỗ ${fmt.n(R.stopAtr)} ATR, chốt lời ${fmt.n(R.targetR)}R, tối đa ${R.hold} phiên, trừ ${fmt.pctAbs(R.cost)} phí và thuế khứ hồi. Thực tế còn trượt giá.</li>
+        <li><b>Thoát lệnh:</b> cắt lỗ ${fmt.n(R.stopAtr)} ATR, chốt lời ${fmt.n(R.targetR)}R, tối đa ${R.hold} phiên, trừ ${fmt.pctAbs(R.cost)} phí và thuế khứ hồi. Thực tế còn trượt giá. Bỏ lệnh có khoảng cắt lỗ dưới 1% giá vào, vì giá đứng im làm thống kê R bị méo.</li>
         <li><b>Thanh khoản:</b> chỉ kiểm chứng tại thời điểm mã đạt từ ${fmt.n(R.minAdv)} tỷ/phiên.</li>
         <li><b>Thiên lệch sống sót:</b> dữ liệu chỉ gồm mã còn niêm yết, nên kết quả có thể đẹp hơn thực tế.</li>
         <li><b>Chọn sau khi nhìn:</b> Điểm Bền được chọn sau khi xem 13 yếu tố. ATR% vượt qua hiệu chỉnh kiểm định bội, vị thế so với đỉnh thì chưa. Với ${fmt.n(R.setups.length - 1)} tín hiệu, một vài kết quả đẹp có thể do may mắn.</li>
@@ -1165,7 +1285,7 @@
   }
 
   /* ---- định tuyến ---- */
-  const ROUTES = { today: 'hom-nay', screen: 'sang-loc', thong: 'phan-tich-thong', watch: 'danh-sach', method: 'phuong-phap' };
+  const ROUTES = { today: 'hom-nay', screen: 'sang-loc', thong: 'phan-tich-thong', potential: 'tiem-nang', watch: 'danh-sach', method: 'phuong-phap' };
 
   function go(tab, sym) {
     state.tab = tab;
@@ -1175,7 +1295,7 @@
     try { history.replaceState(null, '', '#' + token); } catch { /* khung nhúng có thể chặn */ }
     $$('.tab').forEach((b) => b.setAttribute('aria-selected', b.dataset.tab === tab));
     window.scrollTo(0, 0);
-    ({ today: renderToday, screen: renderScreen, symbol: renderSymbol, thong: renderThong, watch: renderWatch, method: renderMethod }[tab])();
+    ({ today: renderToday, screen: renderScreen, symbol: renderSymbol, thong: renderThong, potential: renderPotential, watch: renderWatch, method: renderMethod }[tab])();
   }
 
   function fromHash() {
@@ -1217,6 +1337,7 @@
       if (st) {
         const k = st.dataset.setup;
         if (k === 'thong' || k === 'thong4') { go('thong'); return; }
+        if (k === 'pot_a' || k === 'pot_b') { go('potential'); return; }
         const map = { leader: 'leaderplus', pullback: 'leaderplus', golden: 'leaderplus', breakout: 'breakout', squeeze: 'breakout', breakdown: 'broken', death: 'broken', oversold: 'all' };
         state.preset = map[k] || 'all';
         save.set('preset', state.preset);
@@ -1268,6 +1389,10 @@
     bindSearch();
     const [tab, sym] = fromHash();
     go(tab, sym);
+    window.addEventListener('hashchange', () => {
+      const [t, s] = fromHash();
+      if (t !== state.tab || (s && s !== state.sym)) go(t, s);
+    });
     window.__bkt = { state, go, store };
   }
 

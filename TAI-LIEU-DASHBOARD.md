@@ -20,13 +20,15 @@ Tài liệu này mô tả toàn bộ dashboard: dữ liệu, công thức, chỉ
 9. [Kết quả kiểm chứng](#9-kết-quả-kiểm-chứng)
 10. [Công cụ rủi ro và kế hoạch lệnh](#10-công-cụ-rủi-ro-và-kế-hoạch-lệnh)
 11. [Phân tích của Thông](#11-phân-tích-của-thông)
-12. [Từng màn hình](#12-từng-màn-hình)
-13. [Cập nhật tự động](#13-cập-nhật-tự-động)
-14. [Giới hạn cần biết](#14-giới-hạn-cần-biết)
+12. [Mã tiềm năng](#12-mã-tiềm-năng)
+13. [Từng màn hình](#13-từng-màn-hình)
+14. [Cập nhật tự động](#14-cập-nhật-tự-động)
+15. [Giới hạn cần biết](#15-giới-hạn-cần-biết)
 
 ## 1. Kết luận chính
 
-- **Tín hiệu kỹ thuật kinh điển gần như không có lợi thế** trong 3 năm dữ liệu sau khi trừ phí. Chỉ "Dẫn dắt gần đỉnh" đạt nhãn "Có bằng chứng", và mức này vẫn mỏng.
+- **Tín hiệu kỹ thuật kinh điển gần như không có lợi thế** trong 3 năm dữ liệu sau khi trừ phí. Trong các tín hiệu đơn lẻ, chỉ "Dẫn dắt gần đỉnh" đạt nhãn "Có bằng chứng", và mức này vẫn mỏng.
+- **Kết hợp nhiều phương pháp cho kết quả tốt nhất:** Mã tiềm năng hạng A đạt +0,14R, vượt ngẫu nhiên +0,30R, nhưng vẫn thua khoảng một nửa số lệnh và được ghép sau khi đã biết từng phần có ích.
 - **Yếu tố ổn định nhất là biến động:** mã biến động cao thua thị trường rõ rệt ở cả hai giai đoạn kiểm tra. Điểm Bền được xây trên phát hiện này.
 - **Rủi ro dự báo được tốt hơn lợi nhuận:** dải giá theo ATR và xác suất chạm cắt lỗ giữ được độ chính xác trên giai đoạn kiểm tra độc lập.
 - **Thị trường đang hẹp:** một năm qua VNINDEX +3,3% trong khi cổ phiếu thanh khoản điển hình giảm khoảng 17%.
@@ -231,6 +233,7 @@ Mọi tín hiệu yêu cầu mã thanh khoản và có giao dịch trong phiên.
 | Gãy xu hướng | Đóng cửa thủng MA50, phiên trước còn trên MA50, khối lượng từ 1,3 lần TB |
 | Giao cắt tử thần | MA50 cắt xuống MA200 |
 | Mẫu Thông | Xem [mục 11](#11-phân-tích-của-thông) |
+| Mã tiềm năng hạng A, B | Xem [mục 12](#12-mã-tiềm-năng) |
 
 ### Nhãn đánh giá
 
@@ -252,6 +255,7 @@ Mỗi tín hiệu được mô phỏng thành một lệnh mua theo luật thị
 | Thời điểm tín hiệu | Giá đóng cửa phiên `t` |
 | Giá vào | Giá mở cửa phiên `t+1` |
 | Không mua được | Bỏ lệnh nếu giá mở cửa cách trần dưới 0,5% |
+| Giá đứng im | Bỏ lệnh nếu khoảng cắt lỗ dưới 1% giá vào, vì R gần 0 làm méo thống kê |
 | Cắt lỗ | Giá vào − 2 ATR |
 | Mục tiêu | Giá vào + 2R, tức cách giá vào 4 ATR |
 | Giữ tối đa | 20 phiên |
@@ -276,18 +280,20 @@ Kỳ vọng  = trung bình kết quả của mọi lệnh
 
 ## 9. Kết quả kiểm chứng
 
-Quy tắc giữ ngắn, mốc ngẫu nhiên: **−0,14R**, thắng 36%, 13.592 lệnh.
+Quy tắc giữ ngắn, mốc ngẫu nhiên: **−0,14R**, thắng 36%, 13.585 lệnh.
 
 | Tín hiệu | Lệnh | Thắng | Kỳ vọng | Khoảng 90% | Vượt ngẫu nhiên | Trước | 250p cuối | Điểm ≥ 60 | Đánh giá |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---|
+| Mã tiềm năng hạng A | 299 | 47% | +0,14R | −0,03 … +0,33 | +0,30R | +0,19R | +0,08R | +0,14R | Có bằng chứng |
 | Dẫn dắt gần đỉnh | 614 | 42% | +0,07R | −0,08 … +0,22 | +0,21R | +0,11R | 0,00R | +0,21R | Có bằng chứng |
-| Giao cắt vàng | 447 | 40% | 0,00R | −0,19 … +0,18 | +0,14R | +0,14R | −0,32R | +0,11R | Đỡ hơn ngẫu nhiên |
-| Bật từ quá bán | 1.494 | 45% | 0,00R | −0,14 … +0,15 | +0,07R | +0,08R | −0,13R | −0,12R | Không hơn ngẫu nhiên |
+| Mã tiềm năng hạng A và B | 1.429 | 41% | +0,01R | −0,14 … +0,16 | +0,15R | +0,05R | −0,09R | +0,01R | Đỡ hơn ngẫu nhiên |
+| Giao cắt vàng | 446 | 41% | +0,01R | −0,18 … +0,18 | +0,15R | +0,14R | −0,32R | +0,12R | Đỡ hơn ngẫu nhiên |
+| Bật từ quá bán | 1.494 | 45% | 0,00R | −0,14 … +0,14 | +0,07R | +0,08R | −0,13R | −0,12R | Không hơn ngẫu nhiên |
 | Giao cắt tử thần | 483 | 45% | −0,01R | −0,15 … +0,14 | +0,13R | +0,06R | −0,08R | +0,08R | Không hơn ngẫu nhiên |
-| Siết biên độ | 1.472 | 38% | −0,07R | −0,28 … +0,16 | +0,07R | 0,00R | −0,21R | −0,09R | Không hơn ngẫu nhiên |
-| Mẫu Thông, 4 tiêu chí | 584 | 38% | −0,07R | −0,28 … +0,15 | +0,07R | −0,03R | −0,19R | −0,04R | Không hơn ngẫu nhiên |
-| Kéo về xu hướng | 1.937 | 38% | −0,10R | −0,24 … +0,05 | +0,04R | −0,05R | −0,18R | +0,01R | Không hơn ngẫu nhiên |
-| Mẫu Thông, đủ 5 tiêu chí | 278 | 37% | −0,11R | −0,35 … +0,11 | +0,03R | −0,07R | −0,25R | −0,09R | Không hơn ngẫu nhiên |
+| Siết biên độ | 1.469 | 38% | −0,07R | −0,28 … +0,16 | +0,07R | 0,00R | −0,21R | −0,09R | Không hơn ngẫu nhiên |
+| Mẫu Thông, 4 tiêu chí | 583 | 38% | −0,07R | −0,28 … +0,15 | +0,07R | −0,03R | −0,19R | −0,04R | Không hơn ngẫu nhiên |
+| Kéo về xu hướng | 1.937 | 38% | −0,10R | −0,24 … +0,05 | +0,04R | −0,05R | −0,17R | +0,01R | Không hơn ngẫu nhiên |
+| Mẫu Thông, đủ 5 tiêu chí | 277 | 37% | −0,12R | −0,35 … +0,11 | +0,02R | −0,07R | −0,25R | −0,10R | Không hơn ngẫu nhiên |
 | Gãy xu hướng | 1.325 | 36% | −0,13R | −0,28 … +0,03 | −0,02R | −0,15R | −0,10R | −0,12R | Không hơn ngẫu nhiên |
 | Bứt phá nền | 1.246 | 28% | −0,30R | −0,48 … −0,11 | −0,10R | −0,27R | −0,37R | −0,25R | Thua lỗ rõ |
 
@@ -425,13 +431,66 @@ Kiểm chứng dùng độ dài 30 phiên, biên nền 20%, mã thanh khoản:
 
 | Mẫu | Giữ ngắn (2 ATR, 2R, 20 phiên) | Giữ dài (3 ATR, 3R, 60 phiên) |
 |---|---|---|
-| Đủ 5 tiêu chí | 278 lệnh, thắng 37%, −0,11R, lãi TB −0,4% | 268 lệnh, thắng 28%, −0,16R, lãi TB −1,3% |
-| 4 tiêu chí đầu | 584 lệnh, thắng 38%, −0,07R, lãi TB −0,2% | 563 lệnh, thắng 28%, −0,12R, lãi TB −0,9% |
-| Ngẫu nhiên | 13.592 lệnh, thắng 36%, −0,14R, lãi TB −0,9% | 13.158 lệnh, thắng 31%, −0,11R, lãi TB −1,2% |
+| Đủ 5 tiêu chí | 277 lệnh, thắng 37%, −0,12R, lãi TB −0,5% | 267 lệnh, thắng 28%, −0,16R, lãi TB −1,3% |
+| 4 tiêu chí đầu | 583 lệnh, thắng 38%, −0,07R, lãi TB −0,2% | 562 lệnh, thắng 28%, −0,12R, lãi TB −0,9% |
+| Ngẫu nhiên | 13.585 lệnh, thắng 36%, −0,14R, lãi TB −0,9% | 13.155 lệnh, thắng 31%, −0,11R, lãi TB −1,2% |
 
 Bài kiểm chứng mua ngay khi mẫu xuất hiện. Phương pháp Wyckoff thường chờ giá vượt khỏi nền kèm khối lượng, cách vào lệnh đó chưa được kiểm chứng. Đây là diễn giải bằng quy tắc, không thay được việc đọc biểu đồ.
 
-## 12. Từng màn hình
+## 12. Mã tiềm năng
+
+Tab kết hợp Điểm Bền, tín hiệu đã kiểm chứng và 5 tiêu chí của Thông. Quy tắc được đặt trước khi xem kết quả và không chỉnh theo số kiểm chứng.
+
+### Cổng bắt buộc
+
+Mã phải đạt đủ:
+
+- GTGD TB 20 phiên từ 3 tỷ đồng.
+- Điểm Bền từ 60.
+- Xu hướng Tăng hoặc Tăng mạnh.
+- Giá cách MA20 không quá 4 ATR.
+
+### Điểm kết hợp
+
+```text
+Điểm kết hợp = 0,5 × Điểm Bền + 6 × số tiêu chí Thông đạt + thưởng tín hiệu
+Thưởng       = 20 nếu có Dẫn dắt gần đỉnh, 10 nếu có Kéo về hoặc Giao cắt vàng, 0 nếu không có
+```
+
+Tín hiệu còn hiệu lực trong 3 phiên, nếu có nhiều tín hiệu thì lấy mức cao nhất. Tiêu chí Thông dùng mặc định 30 phiên, biên nền 20%, không phụ thuộc phần chỉnh trên tab Thông. Điểm tối đa là 100.
+
+| Hạng | Điểm kết hợp |
+|---|---:|
+| A | Từ 75 |
+| B | Từ 60 đến dưới 75 |
+| Theo dõi | Dưới 60 |
+
+Cột Tới kháng cự có dấu kiểm khi kháng cự gần nhất xa hơn mục tiêu 2R, tức xa hơn 2 lần khoảng cắt lỗ 2 ATR. Cột này chỉ để tham khảo, không tính vào điểm.
+
+### Kết quả hiện tại
+
+Ngày 30/10/2026: **chưa có mã hạng A**, 6 mã hạng B là NTP, ABB, VTZ, MSB, BAF, OCB, và 17 mã Theo dõi.
+
+### Kiểm chứng
+
+| Mẫu | Giữ ngắn (2 ATR, 2R, 20 phiên) | Giữ dài (3 ATR, 3R, 60 phiên) |
+|---|---|---|
+| Hạng A | 299 lệnh, thắng 47%, +0,14R, lãi TB +0,8% | 282 lệnh, thắng 44%, +0,39R, lãi TB +3,2% |
+| Hạng A và B | 1.429 lệnh, thắng 41%, +0,01R, lãi TB +0,1% | 1.392 lệnh, thắng 35%, +0,06R, lãi TB +0,6% |
+| Ngẫu nhiên | 13.585 lệnh, thắng 36%, −0,14R, lãi TB −0,9% | 13.155 lệnh, thắng 31%, −0,11R, lãi TB −1,2% |
+
+Chi tiết hạng A:
+
+- Vượt ngẫu nhiên +0,30R, khoảng 90% từ +0,18 đến +0,42.
+- Khoảng tin cậy của riêng kỳ vọng là −0,03 đến +0,33, tức vẫn chạm 0.
+- Giai đoạn trước +0,19R, 250 phiên cuối +0,08R.
+- Theo trạng thái thị trường: Lan tỏa +0,55R (75 lệnh), Suy yếu +0,21R (157 lệnh), Trung tính −0,47R (67 lệnh).
+
+Danh mục 10 mã điểm cao nhất, đổi mỗi 20 phiên, đạt +26,2% với sụt giảm tối đa −14,1%. Danh mục nhóm Điểm Bền đạt +29,5% với sụt giảm −9,9%, nên ở cấp danh mục, phần kết hợp chưa cho thấy vượt trội.
+
+Quy tắc được ghép sau khi đã biết từng phần có ích, nên kết quả có thể lạc quan. Danh sách cũng chưa xét báo cáo tài chính hay tin tức.
+
+## 13. Từng màn hình
 
 ### Hôm nay
 
@@ -470,6 +529,14 @@ Nhãn thanh khoản: từ 10 tỷ là Dễ giao dịch, từ 3 tỷ là Vừa ph
 
 Thao tác biểu đồ: kéo để cuộn, lăn chuột để phóng to, nhấp đúp để đặt lại. Phím `[` `]` chuyển mã trước, mã sau trong danh sách đang xem. Phím `/` mở ô tìm kiếm.
 
+### Phân tích của Thông
+
+Chấm toàn bộ mã theo 5 tiêu chí, xem [mục 11](#11-phân-tích-của-thông).
+
+### Mã tiềm năng
+
+Bảng mã qua cổng bắt buộc, lọc theo hạng, ngành, GTGD, kèm kiểm chứng và danh mục thử nghiệm. Xem [mục 12](#12-mã-tiềm-năng).
+
 ### Danh sách
 
 Theo dõi mã, nhập giá vốn và khối lượng để xem lãi lỗ, mức thoát, tổng rủi ro nếu mọi mã về mức thoát, và ngành chiếm tỷ trọng lớn nhất. Dữ liệu chỉ lưu trên trình duyệt của từng người.
@@ -478,7 +545,7 @@ Theo dõi mã, nhập giá vốn và khối lượng để xem lãi lỗ, mức 
 
 Hiển thị bằng chứng Điểm Bền, danh mục kiểm chứng, bảng tín hiệu, bảng rủi ro, trạng thái thị trường và toàn bộ giả định.
 
-## 13. Cập nhật tự động
+## 14. Cập nhật tự động
 
 | Mục | Giá trị |
 |---|---|
@@ -502,7 +569,7 @@ Quy trình: tải đủ dữ liệu, tính toán, dựng trang, kiểm tra, đă
 | `.github/workflows/update.yml` | Lịch tự động |
 | `research*.py` | Các nghiên cứu dẫn tới thiết kế |
 
-## 14. Giới hạn cần biết
+## 15. Giới hạn cần biết
 
 - **Mẫu ngắn:** khoảng 3 năm, chưa đủ nhiều chu kỳ thị trường.
 - **Thiên lệch sống sót:** dữ liệu chỉ gồm mã còn niêm yết, nên kết quả có thể đẹp hơn thực tế.

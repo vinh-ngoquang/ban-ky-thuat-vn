@@ -215,6 +215,10 @@ td .nm { color: var(--muted); font-size: 12px; max-width: 170px; overflow: hidde
 .mk.no svg { color: var(--down); }
 .ev-table td, .ev-table th { padding: 5px 8px; }
 
+/* mã tiềm năng */
+.pot-rules { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.pot-rules h2 { font-size: 14px; margin-bottom: 3px; }
+
 /* danh sách nhanh */
 .mini-list { display: grid; }
 .mini-row { display: grid; grid-template-columns: 54px minmax(0, 1fr) 76px auto; gap: 8px; align-items: center; padding: 5px 4px; border: 0; border-bottom: 1px solid var(--grid); background: none; width: 100%; text-align: left; cursor: pointer; }
@@ -266,7 +270,7 @@ details.card summary { cursor: pointer; font-weight: 600; font-size: 14.5px; }
   .grid-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 780px) {
-  .grid-2, .grid-3, .grid-eq, .desk-side { grid-template-columns: minmax(0, 1fr); }
+  .grid-2, .grid-3, .grid-eq, .desk-side, .pot-rules { grid-template-columns: minmax(0, 1fr); }
   .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .lede h1 { font-size: 20px; }
   .chart-host { height: 460px; }
