@@ -1,0 +1,8 @@
+cache/
+site/
+public/
+__pycache__/
+.claude/
+*.pyc
+.env
+finlens.toml
