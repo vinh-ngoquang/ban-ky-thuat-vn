@@ -551,7 +551,7 @@ Hiển thị bằng chứng Điểm Bền, danh mục kiểm chứng, bảng tí
 |---|---|
 | Lịch | 18:00 giờ Việt Nam, thứ Hai đến thứ Sáu |
 | Nơi chạy | GitHub Actions, không cần bật máy |
-| Thời gian | Khoảng 6,5 phút |
+| Thời gian | Khoảng 25 phút lúc 18:00. SDK rải đều hạn mức đến nửa đêm, nên chạy càng sớm trong ngày càng lâu: buổi sáng có thể hơn 1 giờ, gần nửa đêm khoảng 6 phút |
 | Hạn mức | Khoảng 130 request mỗi lần, trên 2.000 request/ngày |
 | Khóa API | GitHub Secret `FINLENS_API_KEY` |
 

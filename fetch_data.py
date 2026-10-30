@@ -21,6 +21,7 @@ ROOT = pathlib.Path(__file__).parent
 CACHE = ROOT / "cache"
 BATCH = 25
 CONCURRENCY = 4        # trần của gói tài khoản hiện tại
+DEADLINE = 1800        # giây chờ cho mỗi lời gọi: SDK rải đều hạn mức tới nửa đêm, càng sớm trong ngày càng phải chờ lâu
 HISTORY_DAYS = 1090
 
 
@@ -39,7 +40,7 @@ async def _fetch_all(symbols, start, end, adjusted):
             print(f"  adjusted={adjusted}: {done}/{len(symbols)} mã, {time.time() - t0:.0f}s", flush=True)
         return pd.DataFrame(df), list((df.attrs.get("finlens") or {}).get("failed") or {})
 
-    async with finlens.AsyncClient() as client:
+    async with finlens.AsyncClient(deadline=DEADLINE) as client:
         results = await asyncio.gather(*(one(client, c) for c in chunks))
     return results
 

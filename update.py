@@ -1,8 +1,8 @@
 """Cập nhật dữ liệu rồi dựng lại trang.
 
-Chạy lần đầu: tải đủ 3 năm (khoảng 25 phút, 130 request).
-Những lần sau: chỉ tải 20 ngày gần nhất, và tải lại riêng mã nào có giá điều chỉnh thay đổi
-(mã vừa chia cổ tức hoặc tách cổ phiếu), thường chỉ vài phút.
+Mỗi lần tốn khoảng 130 request. SDK rải đều hạn mức còn lại tới nửa đêm, nên thời gian chạy
+phụ thuộc giờ trong ngày: khoảng 25 phút lúc 18:00, 6 phút lúc gần nửa đêm, hơn 1 giờ buổi sáng.
+Có sẵn cache: chỉ tải 20 ngày gần nhất, và tải lại riêng mã có giá điều chỉnh thay đổi.
 """
 import datetime as dt
 import sys
