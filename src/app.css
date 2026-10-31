@@ -3,7 +3,7 @@
    Bố cục: thanh trên cố định, mỗi thẻ là một câu hỏi ra quyết định. */
 :root {
   --bg: #eef1f6; --panel: #ffffff; --panel-2: #f5f7fb; --line: #dbe0ea; --fg: #101726; --fg-2: #3c4557; --muted: #68728a;
-  --accent: #b97a00; --accent-soft: #fbf0d6; --on-accent: #1c1400; --on-mark: #ffffff;
+  --accent: #b97a00; --accent-soft: #fbf0d6; --on-mark: #ffffff;
   --up: #09804c; --down: #cf2a3b; --ref: #a47a00; --ceil: #8538cf; --floor: #0a7ea8;
   --up-soft: #e0f3ea; --down-soft: #fbe4e7; --warn-soft: #fbf0d6; --info-soft: #e6ecf6;
   --grid: #e7ebf2; --axis: #bcc5d4; --band: rgba(16, 23, 38, .05);
@@ -17,7 +17,7 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --bg: #0b101b; --panel: #131a29; --panel-2: #1a2235; --line: #27314a; --fg: #eef2fa; --fg-2: #c2cbdc; --muted: #8e9ab3;
-    --accent: #f4b740; --accent-soft: #3a2d10; --on-accent: #1c1400; --on-mark: #07101d;
+    --accent: #f4b740; --accent-soft: #3a2d10; --on-mark: #07101d;
     --up: #2fcf86; --down: #ff6b78; --ref: #f4c84a; --ceil: #cb93ff; --floor: #52d3f0;
     --up-soft: #10342a; --down-soft: #3e1a22; --warn-soft: #3a2d10; --info-soft: #1e2940;
     --grid: #1e273b; --axis: #39445f; --band: rgba(238, 242, 250, .05);
@@ -28,7 +28,7 @@
 }
 :root[data-theme="dark"] {
   --bg: #0b101b; --panel: #131a29; --panel-2: #1a2235; --line: #27314a; --fg: #eef2fa; --fg-2: #c2cbdc; --muted: #8e9ab3;
-  --accent: #f4b740; --accent-soft: #3a2d10; --on-accent: #1c1400; --on-mark: #07101d;
+  --accent: #f4b740; --accent-soft: #3a2d10; --on-mark: #07101d;
   --up: #2fcf86; --down: #ff6b78; --ref: #f4c84a; --ceil: #cb93ff; --floor: #52d3f0;
   --up-soft: #10342a; --down-soft: #3e1a22; --warn-soft: #3a2d10; --info-soft: #1e2940;
   --grid: #1e273b; --axis: #39445f; --band: rgba(238, 242, 250, .05);
