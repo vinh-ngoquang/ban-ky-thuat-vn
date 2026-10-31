@@ -538,7 +538,7 @@ Bảng mã qua cổng bắt buộc, lọc theo hạng, ngành, GTGD, kèm kiểm
 | Hạn mức | Khoảng 130 request mỗi lần, trên 2.000 request/ngày |
 | Khóa API | GitHub Secret `FINLENS_API_KEY` |
 
-Quy trình: tải đủ dữ liệu, tính toán, dựng trang, kiểm tra, đăng lên GitHub Pages. Lần chạy dừng và giữ trang cũ nếu có dưới 1.000 mã hoặc dữ liệu cũ hơn 7 ngày. Mỗi lần chạy thành công ghi tệp `LAST_UPDATE` để GitHub không tắt lịch sau 60 ngày im lặng.
+Quy trình: tải đủ dữ liệu, tính toán, dựng trang, kiểm tra, đăng lên GitHub Pages. Khi FinLens lỗi tạm thời, mỗi nhóm mã tự thử lại tối đa 5 lần. Chỉ đổi giao diện thì `git push` tự chạy đường nhanh 1–2 phút, dùng lại dữ liệu đang có trên trang và không gọi FinLens. Lần chạy dừng và giữ trang cũ nếu có dưới 1.000 mã hoặc dữ liệu cũ hơn 7 ngày. Mỗi lần chạy thành công ghi tệp `LAST_UPDATE` để GitHub không tắt lịch sau 60 ngày im lặng.
 
 | Tệp | Vai trò |
 |---|---|

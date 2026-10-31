@@ -1,9 +1,24 @@
 name: Cập nhật dashboard
 
+# Có hai đường chạy:
+#   ui   : chỉ đổi giao diện. Dùng lại dữ liệu đang có trên trang, 1 đến 2 phút, không gọi FinLens.
+#   full : tải dữ liệu và tính lại. Lịch 18:00 khoảng 25 phút, chạy tay buổi sáng có thể hơn 1 giờ.
 on:
+  push:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "build_page.py"
+      - "make_public.py"
   schedule:
     - cron: "0 11 * * 1-5"    # 18:00 giờ Việt Nam, thứ Hai đến thứ Sáu
   workflow_dispatch:
+    inputs:
+      mode:
+        description: "ui: chỉ giao diện. full: tải dữ liệu và tính lại"
+        type: choice
+        options: [full, ui]
+        default: full
 
 permissions:
   contents: write             # ghi tệp LAST_UPDATE
@@ -14,10 +29,13 @@ concurrency:
   group: pages
   cancel-in-progress: false
 
+env:
+  MODE: ${{ github.event_name == 'push' && 'ui' || inputs.mode || 'full' }}
+
 jobs:
   update:
     runs-on: ubuntu-latest
-    timeout-minutes: 150      # 18:00 mất khoảng 25 phút, chạy tay buổi sáng có thể hơn 1 giờ
+    timeout-minutes: 150      # đường full buổi sáng có thể hơn 1 giờ
     environment:
       name: github-pages
       url: ${{ steps.deploy.outputs.page_url }}
@@ -27,15 +45,25 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
-          cache: pip
 
-      - run: pip install -r requirements.txt
+      - name: Cài thư viện
+        if: env.MODE == 'full'
+        run: pip install -r requirements.txt
 
       - name: Tải dữ liệu và tính toán
+        if: env.MODE == 'full'
         env:
           FINLENS_API_KEY: ${{ secrets.FINLENS_API_KEY }}
           PYTHONIOENCODING: utf-8
         run: python -W ignore update.py
+
+      - name: Dùng lại dữ liệu đang có và dựng giao diện
+        if: env.MODE == 'ui'
+        env:
+          PYTHONIOENCODING: utf-8
+        run: |
+          python fetch_live.py
+          python build_page.py
 
       - name: Kiểm tra và gom trang
         run: python make_public.py
@@ -49,6 +77,7 @@ jobs:
 
       # GitHub tự tắt lịch chạy nếu kho im lặng 60 ngày, tệp này giữ kho luôn có hoạt động
       - name: Ghi dấu lần cập nhật
+        if: env.MODE == 'full'
         run: |
           date -u +"%Y-%m-%d %H:%M UTC" > LAST_UPDATE
           git config user.name "github-actions[bot]"

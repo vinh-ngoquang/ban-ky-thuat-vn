@@ -22,6 +22,8 @@ CACHE = ROOT / "cache"
 BATCH = 25
 CONCURRENCY = 4        # trần của gói tài khoản hiện tại
 DEADLINE = 1800        # giây chờ cho mỗi lời gọi: SDK rải đều hạn mức tới nửa đêm, càng sớm trong ngày càng phải chờ lâu
+RETRIES = 6            # số lần thử cho mỗi nhóm mã khi FinLens lỗi tạm thời
+RETRY_WAIT = 30        # giây, tăng dần sau mỗi lần thử
 HISTORY_DAYS = 1090
 
 
@@ -33,8 +35,17 @@ async def _fetch_all(symbols, start, end, adjusted):
 
     async def one(client, chunk):
         nonlocal done
-        async with gate:
-            df = await client.eod.stock.ohlcv(chunk, start=start, end=end, adjusted=adjusted, refresh=True)
+        for attempt in range(1, RETRIES + 1):
+            try:
+                async with gate:
+                    df = await client.eod.stock.ohlcv(chunk, start=start, end=end, adjusted=adjusted, refresh=True)
+                break
+            except finlens.TransportError as ex:
+                if attempt == RETRIES:
+                    raise
+                wait = RETRY_WAIT * attempt
+                print(f"  FinLens lỗi tạm thời ({type(ex).__name__}), thử lại sau {wait}s, lần {attempt}/{RETRIES - 1}", flush=True)
+                await asyncio.sleep(wait)
         done += len(chunk)
         if done % 250 == 0 or done == len(symbols):
             print(f"  adjusted={adjusted}: {done}/{len(symbols)} mã, {time.time() - t0:.0f}s", flush=True)

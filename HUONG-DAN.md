@@ -23,6 +23,12 @@ Khi di chuyển thư mục này, hãy di chuyển cả thư mục `cache`, nếu
 | `serve.py` | Máy chủ cục bộ, chỉ nhận kết nối từ chính máy này |
 | `research*.py` | Các nghiên cứu dẫn tới thiết kế, chỉ in kết quả |
 
+## Đưa thay đổi lên trang công khai
+
+- **Chỉ đổi giao diện** (`src/`, `build_page.py`, `make_public.py`): `git push` là đủ. GitHub tự dựng lại trong 1 đến 2 phút, dùng lại dữ liệu đang có và không gọi FinLens.
+- **Đổi công thức, ngưỡng hoặc dữ liệu cho trang** (`engine.py`, `export.py`): sau khi `git push`, chạy `gh workflow run update.yml`. Lần này phải tải và tính lại, khoảng 25 phút lúc 18:00, hơn 1 giờ nếu chạy buổi sáng. Nếu không chạy tay, thay đổi sẽ có ở lần 18:00 kế tiếp.
+- **Giao diện cần thêm dữ liệu mới:** đổi cả `src/` và `export.py` thì vẫn phải chạy đầy đủ như trên.
+
 ## Đổi quy tắc
 
 Ngưỡng và tham số nằm ở đầu `engine.py`: `MIN_ADV`, `COST`, `STOP_ATR`, `TARGET_R`, `MAX_HOLD`, `SETUPS`.
