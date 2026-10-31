@@ -386,7 +386,7 @@ Tab chấm mọi mã đủ thanh khoản theo 5 tiêu chí. Điểm đạt là s
 | 1 | EMA xếp tầng | Giá > EMA10 > EMA20 > EMA50 > EMA150 > EMA200 | 11 |
 | 2 | RSI | RSI 14 > 50 | 49 |
 | 3 | EMA chưa giãn | `|EMA50/EMA150 − 1| < 20%` và `|EMA50/EMA200 − 1| < 20%` | 184 |
-| 4 | Nền tích lũy | Bốn điều kiện bên dưới | 32 |
+| 4 | Nền tích lũy | Bốn điều kiện bên dưới | 29 |
 | 5 | POC tăng dần | POC1 < POC2 < POC3 | 34 |
 
 Tiêu chí 1 hiển thị thêm "cắt lên" nếu EMA10 vừa cắt EMA20 trong 10 phiên gần nhất.
@@ -417,7 +417,7 @@ Giá dùng ở đây là giá điều chỉnh, khối lượng là số cổ phi
 
 ### Kết quả hiện tại và kiểm chứng
 
-Ngày 30/10/2026 với mặc định, trong 203 mã đủ thanh khoản: **1 mã đạt đủ** là FRT, và 6 mã đạt 4 tiêu chí.
+Ngày 30/10/2026 với mặc định, trong 203 mã đủ thanh khoản: **1 mã đạt đủ** là FRT, và 5 mã đạt 4 tiêu chí.
 
 Kiểm chứng dùng độ dài 30 phiên, biên nền 20%, mã thanh khoản:
 
