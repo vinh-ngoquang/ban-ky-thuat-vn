@@ -40,7 +40,7 @@ Tài liệu này mô tả toàn bộ dashboard: dữ liệu, công thức, chỉ
 |---|---|
 | Nguồn giá | FinLens `eod.stock.ohlcv` |
 | Tên và ngành | FinLens `meta.symbols` |
-| Số mã | 1.626 mã yêu cầu, 1.620 mã có dữ liệu trên trang |
+| Số mã | 1.626 mã yêu cầu, 1.620 mã có dữ liệu. Các bảng chỉ hiện 203 mã đủ thanh khoản, mã khác vẫn tra được bằng ô tìm kiếm |
 | Lịch sử | 743 phiên, từ 06/11/2023 đến 30/10/2026 |
 | Giá điều chỉnh | Dùng cho mọi chỉ báo và kiểm chứng |
 | Giá khớp thật | Dùng cho thanh khoản, giá hiển thị, trần sàn và đặt lệnh |
@@ -62,7 +62,7 @@ GTGD TB 20 phiên            = trung bình 20 phiên, cần tối thiểu 10 phi
 Mã thanh khoản              = GTGD TB 20 phiên ≥ 3 tỷ đồng
 ```
 
-Hiện có 203 mã đạt ngưỡng. Chỉ các mã này được tính vào chỉ số thị trường, RS, Điểm Bền và kiểm chứng. Điều kiện này xét **tại từng thời điểm**, không dùng thanh khoản hiện tại để nhìn ngược về quá khứ.
+Hiện có 203 mã đạt ngưỡng, 1.417 mã còn lại bị loại khỏi mọi bảng. Chỉ các mã này được tính vào chỉ số thị trường, RS, Điểm Bền và kiểm chứng. Điều kiện này xét **tại từng thời điểm**, không dùng thanh khoản hiện tại để nhìn ngược về quá khứ.
 
 ## 3. Chỉ báo cơ bản
 
@@ -379,15 +379,15 @@ Giá trần làm tròn xuống, giá sàn làm tròn lên theo bước giá. Ng�
 
 ## 11. Phân tích của Thông
 
-Tab chấm toàn bộ mã theo 5 tiêu chí, kể cả mã thanh khoản thấp. Điểm đạt là số tiêu chí đúng trên 5.
+Tab chấm mọi mã đủ thanh khoản theo 5 tiêu chí. Điểm đạt là số tiêu chí đúng trên 5.
 
 | # | Tiêu chí | Quy tắc mã hóa | Số mã đạt |
 |---:|---|---|---:|
-| 1 | EMA xếp tầng | Giá > EMA10 > EMA20 > EMA50 > EMA150 > EMA200 | 106 |
-| 2 | RSI | RSI 14 > 50 | 606 |
-| 3 | EMA chưa giãn | `|EMA50/EMA150 − 1| < 20%` và `|EMA50/EMA200 − 1| < 20%` | 1.474 |
-| 4 | Nền tích lũy | Bốn điều kiện bên dưới | 179 |
-| 5 | POC tăng dần | POC1 < POC2 < POC3 | 153 |
+| 1 | EMA xếp tầng | Giá > EMA10 > EMA20 > EMA50 > EMA150 > EMA200 | 11 |
+| 2 | RSI | RSI 14 > 50 | 49 |
+| 3 | EMA chưa giãn | `|EMA50/EMA150 − 1| < 20%` và `|EMA50/EMA200 − 1| < 20%` | 184 |
+| 4 | Nền tích lũy | Bốn điều kiện bên dưới | 32 |
+| 5 | POC tăng dần | POC1 < POC2 < POC3 | 34 |
 
 Tiêu chí 1 hiển thị thêm "cắt lên" nếu EMA10 vừa cắt EMA20 trong 10 phiên gần nhất.
 
@@ -417,7 +417,7 @@ Giá dùng ở đây là giá điều chỉnh, khối lượng là số cổ phi
 
 ### Kết quả hiện tại và kiểm chứng
 
-Ngày 30/10/2026 với mặc định: **4 mã đạt đủ** là FRT, MCP, SGB, FT1, trong đó chỉ FRT đủ thanh khoản 3 tỷ/phiên. Có 46 mã đạt 4 tiêu chí.
+Ngày 30/10/2026 với mặc định, trong 203 mã đủ thanh khoản: **1 mã đạt đủ** là FRT, và 6 mã đạt 4 tiêu chí.
 
 Kiểm chứng dùng độ dài 30 phiên, biên nền 20%, mã thanh khoản:
 

@@ -12,7 +12,7 @@
     set(k, v) { try { localStorage.setItem('bkt:' + k, JSON.stringify(v)); } catch { /* chế độ riêng tư */ } },
   };
 
-  const thDefaults = () => ({ window: 30, maxRange: 20, minPass: 0, req: [], ex: '', sector: '', adv: 0, q: '' });
+  const thDefaults = () => ({ window: 30, maxRange: 20, minPass: 0, req: [], ex: '', sector: '', adv: 3, q: '' });
 
   const state = {
     tab: 'today', sym: null, tf: 'd', chart: null, range: 252,
@@ -349,7 +349,7 @@
     const f = state.filters;
     const preset = PRESETS.find((p) => p.id === state.preset) || PRESETS[0];
     const q = fold(f.q.trim());
-    const rows = store.universe.filter((u) => (u.adv || 0) >= f.adv
+    const rows = store.universe.filter((u) => u.liquid && (u.adv || 0) >= f.adv
       && (!f.ex || u.ex === f.ex) && (!f.sector || u.sector === f.sector) && (!f.trend || u.trend === f.trend)
       && (!f.score || (u.score ?? -1) >= f.score) && (!q || u.key.includes(q)) && preset.test(u));
     const { key, dir } = state.sort;
@@ -365,7 +365,7 @@
   }
 
   function renderScreen() {
-    const sectors = [...new Set(store.universe.map((u) => u.sector))].filter(Boolean).sort((a, b) => a.localeCompare(b, 'vi'));
+    const sectors = [...new Set(store.universe.filter((u) => u.liquid).map((u) => u.sector))].filter(Boolean).sort((a, b) => a.localeCompare(b, 'vi'));
     const f = state.filters;
     view().innerHTML = `<div class="view"><section class="lede"><h1>Sàng lọc</h1><p>Chọn một góc nhìn, thu hẹp bằng bộ lọc, rồi mở mã để lập kế hoạch. Phím <span class="num">↑ ↓</span> để chọn dòng, <span class="num">Enter</span> để mở.</p></section>
       <section class="card" id="sang-loc">
@@ -374,7 +374,7 @@
           <label>Sàn <select id="f-ex"><option value="">Tất cả</option>${['HOSE', 'HNX', 'UPCOM'].map((x) => `<option ${f.ex === x ? 'selected' : ''}>${x}</option>`).join('')}</select></label>
           <label>Ngành <select id="f-sector"><option value="">Tất cả</option>${sectors.map((x) => `<option ${f.sector === x ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select></label>
           <label>Xu hướng <select id="f-trend"><option value="">Tất cả</option>${Object.entries(TREND).map(([k, v]) => `<option value="${k}" ${f.trend === k ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
-          <label>GTGD từ <input id="f-adv" type="number" min="0" step="1" value="${f.adv}"> tỷ</label>
+          <label>GTGD từ <input id="f-adv" type="number" min="3" step="1" value="${f.adv}"> tỷ</label>
           <label>Điểm từ <input id="f-score" type="number" min="0" max="100" step="5" value="${f.score}"></label>
           <label><input id="f-q" type="search" placeholder="Lọc theo mã, tên" value="${esc(f.q)}"></label>
           <button class="icon-btn" id="f-reset">Đặt lại</button>
@@ -817,7 +817,7 @@
     const q = fold(o.q.trim());
     const rows = [];
     for (const u of store.universe) {
-      if ((u.adv || 0) < o.adv || (o.ex && u.ex !== o.ex) || (o.sector && u.sector !== o.sector) || (q && !u.key.includes(q))) continue;
+      if (!u.liquid || (u.adv || 0) < o.adv || (o.ex && u.ex !== o.ex) || (o.sector && u.sector !== o.sector) || (q && !u.key.includes(q))) continue;
       const r = C.evalThong(u, state.thData.rows[u.s], { window: o.window, maxRange: o.maxRange }, state.thData);
       if (r.count < o.minPass || o.req.some((i) => !r.pass[i])) continue;
       rows.push({ u, r });
@@ -845,7 +845,7 @@
     }
     if (state.tab !== 'thong') return;
     const o = state.th, R = store.report;
-    const sectors = [...new Set(store.universe.map((u) => u.sector))].filter(Boolean).sort((a, b) => a.localeCompare(b, 'vi'));
+    const sectors = [...new Set(store.universe.filter((u) => u.liquid).map((u) => u.sector))].filter(Boolean).sort((a, b) => a.localeCompare(b, 'vi'));
     const row5 = R.setups.find((s) => s.key === 'thong'), row4 = R.setups.find((s) => s.key === 'thong4');
     const rand = R.setups.find((s) => s.key === 'random');
     const alt = R.thongAlt;
@@ -863,7 +863,7 @@
           <label>Đạt tối thiểu <select id="th-min">${[0, 1, 2, 3, 4, 5].map((n) => `<option value="${n}" ${o.minPass === n ? 'selected' : ''}>${n} tiêu chí</option>`).join('')}</select></label>
           <label>Sàn <select id="th-ex"><option value="">Tất cả</option>${['HOSE', 'HNX', 'UPCOM'].map((x) => `<option ${o.ex === x ? 'selected' : ''}>${x}</option>`).join('')}</select></label>
           <label>Ngành <select id="th-sector"><option value="">Tất cả</option>${sectors.map((x) => `<option ${o.sector === x ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select></label>
-          <label>GTGD từ <input id="th-adv" type="number" min="0" step="1" value="${o.adv}"> tỷ</label>
+          <label>GTGD từ <input id="th-adv" type="number" min="3" step="1" value="${o.adv}"> tỷ</label>
           <label><input id="th-q" type="search" placeholder="Lọc theo mã, tên" value="${esc(o.q)}"></label>
           <button class="icon-btn" id="th-reset">Đặt lại</button>
           <span class="note" id="th-count" aria-live="polite"></span>
@@ -903,18 +903,20 @@
   function drawThong() {
     const o = state.th;
     const opt = { window: o.window, maxRange: o.maxRange };
-    // đếm trên toàn thị trường, không phụ thuộc bộ lọc hiển thị
+    // đếm trên mọi mã đủ thanh khoản, không phụ thuộc bộ lọc hiển thị
     const counts = [0, 0, 0, 0, 0];
-    let five = 0, four = 0, fiveLiquid = 0;
+    let five = 0, four = 0, scored = 0;
     for (const u of store.universe) {
+      if (!u.liquid) continue;
+      scored++;
       const r = C.evalThong(u, state.thData.rows[u.s], opt, state.thData);
       r.pass.forEach((p, i) => { if (p) counts[i]++; });
-      if (r.count === 5) { five++; if (u.liquid) fiveLiquid++; }
+      if (r.count === 5) five++;
       if (r.count === 4) four++;
     }
     counts.forEach((c, i) => { $('#th-c' + i).textContent = fmt.n(c) + ' mã'; });
     $('#th-title').textContent = five ? `${five} mã đạt đủ 5 tiêu chí` : 'Chưa có mã nào đạt đủ 5 tiêu chí';
-    $('#th-sub').textContent = `${fmt.n(four)} mã đạt 4 tiêu chí, ${fmt.n(store.universe.length)} mã được chấm. ${five ? `Trong số đạt đủ, ${fiveLiquid} mã có thanh khoản từ ${fmt.n(store.report.minAdv)} tỷ/phiên.` : ''}`;
+    $('#th-sub').textContent = `${fmt.n(four)} mã đạt 4 tiêu chí, ${fmt.n(scored)} mã được chấm. Đã loại ${fmt.n(store.universe.length - scored)} mã có GTGD trung bình 20 phiên dưới ${fmt.n(store.report.minAdv)} tỷ.`;
     const rows = thongRows();
     state.list = rows.map((x) => x.u.s);
     $('#th-count').textContent = `Hiện ${fmt.n(rows.length)} mã`;
@@ -994,7 +996,7 @@
         <div class="filters">
           <label>Hạng <select id="pot-grade"><option value="">Tất cả</option>${['A', 'B', 'C'].map((g) => `<option value="${g}" ${o.grade === g ? 'selected' : ''}>${GRADE_NAME[g]}</option>`).join('')}</select></label>
           <label>Ngành <select id="pot-sector"><option value="">Tất cả</option>${sectors.map((x) => `<option ${o.sector === x ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select></label>
-          <label>GTGD từ <input id="pot-adv" type="number" min="0" step="1" value="${o.adv}"> tỷ</label>
+          <label>GTGD từ <input id="pot-adv" type="number" min="3" step="1" value="${o.adv}"> tỷ</label>
           <label><input id="pot-q" type="search" placeholder="Lọc theo mã, tên" value="${esc(o.q)}"></label>
           <button class="icon-btn" id="pot-reset">Đặt lại</button>
           <span class="note" id="pot-count" aria-live="polite"></span>
@@ -1207,6 +1209,8 @@
     const cuts = [0.2, 0.4, 0.6, 0.8].map((p) => scores[Math.floor(scores.length * p)]);
     C.quintileOf = (s) => (isNum(s) ? 1 + cuts.filter((c) => s >= c).length : null);
     const R = store.report;
+    // cài đặt cũ trên trình duyệt có thể còn ngưỡng 0
+    for (const o of [state.filters, state.th, state.pot]) o.adv = Math.max(o.adv || 0, R.minAdv);
     $('#asof').textContent = fmt.day(R.asOf);
     bindSearch();
     const [tab, sym] = fromHash();
