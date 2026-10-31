@@ -73,7 +73,7 @@ h1, h2, h3 { text-wrap: balance; font-weight: 600; }
 .search-item b { font-weight: 600; }
 .search-item span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: 13px; }
 .top-meta { display: flex; align-items: center; gap: 10px; white-space: nowrap; font-size: 12.5px; color: var(--muted); }
-.icon-btn { border: 1px solid var(--line); background: var(--panel); border-radius: var(--r); padding: 4px 8px; cursor: pointer; font-size: 12.5px; }
+.icon-btn { text-decoration: none; border: 1px solid var(--line); background: var(--panel); border-radius: var(--r); padding: 4px 8px; cursor: pointer; font-size: 12.5px; }
 .icon-btn:hover { background: var(--panel-2); }
 
 /* khung trang */
@@ -149,8 +149,6 @@ td .nm { color: var(--muted); font-size: 12px; max-width: 170px; overflow: hidde
 .sym-head h1 { font-size: 24px; letter-spacing: -.02em; line-height: 1.1; }
 .sym-head .px { font-size: 22px; font-weight: 600; }
 .sym-sub { color: var(--muted); font-size: 12.5px; }
-.star { border: 1px solid var(--line); background: var(--panel); border-radius: var(--r); cursor: pointer; padding: 3px 9px; font-size: 12.5px; }
-.star[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
 .verdict { font-size: 15px; color: var(--fg); max-width: 110ch; }
 .desk { display: grid; grid-template-columns: minmax(0, 1fr) 356px; gap: 12px; align-items: start; }
 .desk-side { display: grid; gap: 12px; min-width: 0; }
@@ -253,9 +251,6 @@ td .nm { color: var(--muted); font-size: 12px; max-width: 170px; overflow: hidde
 .tip .r b { font-family: var(--font-num); font-weight: 600; }
 .legend { display: flex; gap: 12px; flex-wrap: wrap; font-size: 12px; color: var(--fg-2); margin-bottom: 4px; }
 .legend i { display: inline-block; width: 13px; height: 2px; vertical-align: middle; margin-right: 5px; }
-.prose { max-width: 78ch; color: var(--fg-2); display: grid; gap: 8px; }
-.prose b { color: var(--fg); font-weight: 600; }
-.prose ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
 details.card summary { cursor: pointer; font-weight: 600; font-size: 14.5px; }
 .foot { color: var(--muted); font-size: 12px; padding: 10px 2px 0; max-width: 100ch; }
 .skeleton { color: var(--muted); padding: 40px 6px; }

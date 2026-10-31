@@ -377,14 +377,6 @@ Giá trần làm tròn xuống, giá sàn làm tròn lên theo bước giá. Ng�
 - Mức trên giá hiện tại là kháng cự, mức dưới là hỗ trợ. Lấy tối đa 4 mức mỗi bên.
 - Số lần chạm càng nhiều, đường trên biểu đồ càng đậm.
 
-### Mức thoát theo xu hướng
-
-```text
-Mức thoát = đỉnh cao nhất 22 phiên − 3 × ATR
-```
-
-Danh sách theo dõi dùng mức này để báo "Đã thủng" và ước tính rủi ro nắm giữ.
-
 ## 11. Phân tích của Thông
 
 Tab chấm toàn bộ mã theo 5 tiêu chí, kể cả mã thanh khoản thấp. Điểm đạt là số tiêu chí đúng trên 5.
@@ -501,7 +493,6 @@ Quy tắc được ghép sau khi đã biết từng phần có ích, nên kết 
   - **Bền và có tín hiệu tốt:** điểm ≥ 60, có Dẫn dắt, Kéo về hoặc Giao cắt vàng.
   - **Dễ thành bẫy:** Bứt phá, hoặc Siết biên độ với điểm dưới 40.
   - **Đang gãy xu hướng:** Gãy xu hướng hoặc Giao cắt tử thần.
-- Thay đổi trong danh sách theo dõi: đổi xu hướng, Điểm Bền đổi từ 10 điểm trong 5 phiên, tín hiệu mới.
 - Ngành: nhóm mã thanh khoản theo ICB cấp 2, từ 3 mã trở lên, xếp theo Điểm Bền trung vị.
 
 ### Sàng lọc
@@ -536,14 +527,6 @@ Chấm toàn bộ mã theo 5 tiêu chí, xem [mục 11](#11-phân-tích-của-th
 ### Mã tiềm năng
 
 Bảng mã qua cổng bắt buộc, lọc theo hạng, ngành, GTGD, kèm kiểm chứng và danh mục thử nghiệm. Xem [mục 12](#12-mã-tiềm-năng).
-
-### Danh sách
-
-Theo dõi mã, nhập giá vốn và khối lượng để xem lãi lỗ, mức thoát, tổng rủi ro nếu mọi mã về mức thoát, và ngành chiếm tỷ trọng lớn nhất. Dữ liệu chỉ lưu trên trình duyệt của từng người.
-
-### Phương pháp
-
-Hiển thị bằng chứng Điểm Bền, danh mục kiểm chứng, bảng tín hiệu, bảng rủi ro, trạng thái thị trường và toàn bộ giả định.
 
 ## 14. Cập nhật tự động
 

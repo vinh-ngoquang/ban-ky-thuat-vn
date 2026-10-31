@@ -21,7 +21,6 @@
     preset: save.get('preset', 'stable'),
     filters: Object.assign({ ex: '', sector: '', adv: 3, score: 0, trend: '', q: '' }, save.get('filters', {})),
     sort: { key: 'score', dir: -1 }, sel: 0, list: [],
-    wl: save.get('wl', {}),
     planIn: Object.assign({ capital: 500, riskPct: 1, k: 2, targetR: 2 }, save.get('plan', {})),
     show: Object.assign({ ma20: true, ma50: true, ma200: true, bb: false, sr: true, plan: true, markers: true, profile: false, ema: false, poc: false }, save.get('show', {})),
     panes: save.get('panes', ['volume', 'rsi']),
@@ -225,7 +224,7 @@
           <p class="note" style="margin-top:6px">Chỉ số điển hình gia quyền theo thanh khoản, tính riêng từ giá từng mã, 100 = ${fmt.day(M.dates[0])}. Nền xanh: Lan tỏa. Nền đỏ: Suy yếu.</p>
         </section>
         <section class="card" id="bang-chung">
-          <div class="card-head"><h2>Tín hiệu nào từng có ích?</h2><button class="icon-btn" data-go="method">Cách kiểm chứng</button></div>
+          <div class="card-head"><h2>Tín hiệu nào từng có ích?</h2><a class="icon-btn" href="https://github.com/vinh-ngoquang/ban-ky-thuat-vn/blob/main/TAI-LIEU-DASHBOARD.md#8-c%C3%A1ch-ki%E1%BB%83m-ch%E1%BB%A9ng" target="_blank" rel="noopener">Cách kiểm chứng</a></div>
           <p class="note" style="margin-bottom:8px">Mỗi tín hiệu được mô phỏng thành lệnh thật trong ${fmt.n(R.sessions)} phiên, đã trừ phí. Cột giữa so với mốc vào lệnh ngẫu nhiên (${fmt.r(R.setups.find((s) => s.key === 'random').all.exp)}).</p>
           <div>${evidenceRows()}</div>
           <div class="scale-note" style="margin-top:6px"><span>−0,6R</span><span>kỳ vọng mỗi lệnh, vạch mờ là khoảng tin cậy 90%</span><span>+0,6R</span></div>
@@ -240,12 +239,11 @@
         ${miniCard('Dễ thành bẫy', 'Bứt phá hoặc siết biên độ ở mã kém bền. Lịch sử cho thấy nhóm này hay thất bại.', traps, 'breakout')}
         ${miniCard('Đang gãy xu hướng', 'Thủng MA50 với khối lượng lớn hoặc giao cắt tử thần trong 3 phiên gần nhất.', broken, 'broken')}
       </div>
-      ${watchPulse()}
       <section class="card" id="nganh">
         <div class="card-head"><h2>Ngành nào bền nhất</h2><span class="note">Chỉ tính mã đủ thanh khoản, xếp theo Điểm Bền trung vị</span></div>
         <div class="table-wrap" style="max-height:none">${sectorTable(tradable)}</div>
       </section>
-      <p class="foot">Dữ liệu đến hết phiên ${fmt.day(M.dates[n])}. Đây là công cụ phân tích chung dựa trên quy tắc, không phải tư vấn đầu tư cá nhân. Hiệu quả trong quá khứ không bảo đảm kết quả tương lai.</p>
+      <p class="foot">Dữ liệu đến hết phiên ${fmt.day(M.dates[n])}. Đây là công cụ phân tích chung dựa trên quy tắc, không phải tư vấn đầu tư cá nhân. Hiệu quả trong quá khứ không bảo đảm kết quả tương lai. Xem công thức, giả định và giới hạn trong <a href="https://github.com/vinh-ngoquang/ban-ky-thuat-vn/blob/main/TAI-LIEU-DASHBOARD.md" target="_blank" rel="noopener">tài liệu</a>.</p>
     </div>`;
     drawMarket();
     $$('#mkt-range button').forEach((b) => b.addEventListener('click', () => {
@@ -284,21 +282,6 @@
     return `<section class="card"><div class="card-head"><h2>${esc(title)}</h2>${rows.length ? `<button class="icon-btn" data-preset="${preset}">Xem hết</button>` : ''}</div>
       <p class="note" style="margin-bottom:6px">${esc(note)}</p>
       <div class="mini-list">${rows.length ? rows.map(miniRow).join('') : '<p class="empty">Không có mã nào khớp trong 3 phiên gần nhất.</p>'}</div></section>`;
-  }
-
-  function watchPulse() {
-    const syms = Object.keys(state.wl).filter((s) => store.bySym.has(s));
-    if (!syms.length) return '';
-    const items = [];
-    for (const s of syms) {
-      const u = store.bySym.get(s);
-      if (u.trend !== u.trend5 && u.trend5) items.push([u, `Xu hướng đổi từ ${TREND[u.trend5]} sang ${TREND[u.trend]}`, u.trend === 'down' ? 'bad' : '']);
-      if (isNum(u.score) && isNum(u.score5) && Math.abs(u.score - u.score5) >= 10) items.push([u, `Điểm Bền ${fmt.n(u.score5)} → ${fmt.n(u.score)} trong 5 phiên`, u.score < u.score5 ? 'warn' : '']);
-      for (const k of u.sigs) items.push([u, 'Tín hiệu: ' + (C.setup(k)?.name || k), C.setup(k)?.side === 'risk' ? 'bad' : '']);
-    }
-    return `<section class="card"><div class="card-head"><h2>Danh sách của bạn có gì mới</h2><button class="icon-btn" data-go="watch">Mở danh sách</button></div>
-      ${items.length ? `<div class="mini-list">${items.slice(0, 10).map(([u, t, tone]) => `<button class="mini-row" data-sym="${esc(u.s)}" style="grid-template-columns:54px minmax(0,1fr) auto"><b>${esc(u.s)}</b><span class="m ${tone === 'bad' ? 'down' : ''}">${esc(t)}</span><span class="num ${toneOf(u.chg)}">${fmt.pct(u.chg)}</span></button>`).join('')}</div>`
-    : `<p class="empty">${syms.length} mã trong danh sách, không có thay đổi đáng chú ý trong 5 phiên.</p>`}</section>`;
   }
 
   function sectorTable(rows) {
@@ -496,7 +479,6 @@
         <div><span class="px num">${fmt.px(u.px)}</span> <span class="num ${toneOf(u.chg)}">${fmt.pct(u.chg, 2)}</span>
           <div class="sym-sub num">Tham chiếu ${fmt.px(u.px)} · Trần <span style="color:var(--ceil)">${fmt.px(lim.ceil)}</span> · Sàn <span style="color:var(--floor)">${fmt.px(lim.floor)}</span></div></div>
         <div class="sym-sub" style="flex:1;min-width:180px">${esc(u.name)}</div>
-        <button class="star" id="star" aria-pressed="${!!state.wl[sym]}">${state.wl[sym] ? 'Đang theo dõi' : 'Theo dõi'}</button>
         ${inList >= 0 ? `<div class="seg"><button id="prev-sym" title="Mã trước, phím [">‹ Trước</button><button id="next-sym" title="Mã sau, phím ]">Sau ›</button></div>` : ''}
       </section>
       <p class="verdict" id="ket-luan">${esc(verdictLine(data))}</p>
@@ -772,14 +754,6 @@
     state.chart = new window.StockChart($('#chart'), { onHover: updateReadout });
     setChartData(data);
     drawPlan(u);
-    $('#star').addEventListener('click', (e) => {
-      const on = !state.wl[u.s];
-      if (on) state.wl[u.s] = {}; else delete state.wl[u.s];
-      save.set('wl', state.wl);
-      e.currentTarget.setAttribute('aria-pressed', on);
-      e.currentTarget.textContent = on ? 'Đang theo dõi' : 'Theo dõi';
-      toast(on ? `Đã thêm ${u.s} vào danh sách` : `Đã bỏ ${u.s} khỏi danh sách`);
-    });
     $$('#tog-layers .tog').forEach((b) => b.addEventListener('click', async () => {
       const k = b.dataset.k;
       state.show[k] = !state.show[k];
@@ -1045,7 +1019,7 @@
         <section class="card" id="tiem-nang-danh-muc"><div class="card-head"><h2>Thử nắm giữ 10 mã điểm cao nhất</h2><span class="note">Đổi danh mục mỗi 20 phiên</span></div>
           ${legend([['Danh mục, đã trừ phí', 'var(--fg)'], ['Mọi mã thanh khoản', 'var(--s-ma200)']])}
           <div id="pot-nav"></div>
-          <p class="note" style="margin-top:6px">${fmt.pct(F.ret)} so với ${fmt.pct(F.baseRet)} của toàn thị trường, sụt giảm tối đa ${fmt.pct(F.dd, 0)} so với ${fmt.pct(F.baseDd, 0)}, qua ${F.periods} kỳ. Danh mục nhóm Điểm Bền trong tab Phương pháp đạt ${fmt.pct(R.portfolio.ret)} với sụt giảm ${fmt.pct(R.portfolio.dd, 0)}, nên ở cấp danh mục, phần kết hợp chưa cho thấy vượt trội.</p>
+          <p class="note" style="margin-top:6px">${fmt.pct(F.ret)} so với ${fmt.pct(F.baseRet)} của toàn thị trường, sụt giảm tối đa ${fmt.pct(F.dd, 0)} so với ${fmt.pct(F.baseDd, 0)}, qua ${F.periods} kỳ. Danh mục đơn giản giữ 20% mã Điểm Bền cao nhất đạt ${fmt.pct(R.portfolio.ret)} với sụt giảm ${fmt.pct(R.portfolio.dd, 0)}, nên ở cấp danh mục, phần kết hợp chưa cho thấy vượt trội.</p>
         </section>
       </div>
       <p class="foot">Danh sách theo quy tắc từ giá và khối lượng, chưa xét báo cáo tài chính, tin tức hay sự kiện doanh nghiệp. Đây không phải khuyến nghị mua bán.</p>
@@ -1093,156 +1067,6 @@
     }));
   }
 
-  /* ---- màn hình Danh sách ---- */
-  async function renderWatch() {
-    const syms = Object.keys(state.wl).filter((s) => store.bySym.has(s));
-    view().innerHTML = `<div class="view"><section class="lede"><h1>Danh sách của tôi</h1><p>Nhập giá vốn và khối lượng để biết lãi lỗ, mức thoát theo xu hướng và tổng rủi ro. Dữ liệu chỉ lưu trên trình duyệt này.</p></section>
-      <div id="wl-body"><p class="skeleton">Đang tải…</p></div></div>`;
-    if (!syms.length) {
-      $('#wl-body').innerHTML = `<section class="card"><p class="empty">Danh sách đang trống. Bấm Theo dõi ở một mã, hoặc thêm nhanh 5 mã có Điểm Bền cao nhất và thanh khoản từ 20 tỷ.</p>
-        <button class="icon-btn" id="wl-seed">Thêm 5 mã bền nhất</button></section>`;
-      $('#wl-seed').addEventListener('click', () => {
-        store.universe.filter((u) => u.adv >= 20 && isNum(u.score)).sort((a, b) => b.score - a.score).slice(0, 5).forEach((u) => { state.wl[u.s] = {}; });
-        save.set('wl', state.wl);
-        renderWatch();
-      });
-      return;
-    }
-    const rows = await Promise.all(syms.map(async (s) => {
-      const d = await C.loadSymbol(s);
-      const series = C.atr(d.bars);
-      return { u: d.u, pos: state.wl[s], ch: C.chandelier(d.bars, series) };
-    }));
-    if (state.tab !== 'watch') return;
-    drawWatch(rows);
-  }
-
-  function drawWatch(rows) {
-    let value = 0, pnl = 0, risk = 0;
-    const sectors = new Map();
-    const body = rows.map(({ u, pos, ch }) => {
-      const cost = +pos.cost || 0, qty = +pos.qty || 0;
-      const mv = u.px * qty * 1000;
-      const p = cost ? (u.px / cost - 1) : null;
-      const exit = ch ? ch.stop : null;
-      const toExit = exit ? exit / u.px - 1 : null;
-      const atRisk = exit ? Math.max(0, (u.px - exit) * qty * 1000) : 0;
-      value += mv;
-      if (cost) pnl += (u.px - cost) * qty * 1000;
-      risk += atRisk;
-      if (mv) sectors.set(u.sector, (sectors.get(u.sector) || 0) + mv);
-      const broke = exit && u.px < exit;
-      return `<tr data-row="${esc(u.s)}"><td class="l"><button class="icon-btn" data-sym="${esc(u.s)}" style="border:0;padding:0;background:none"><span class="sym">${esc(u.s)}</span></button></td>
-        <td class="num">${fmt.px(u.px)}</td><td class="num ${toneOf(u.chg)}">${fmt.pct(u.chg)}</td><td>${scoreBar(u.score)}</td><td class="l">${trendChip(u.trend)}</td>
-        <td><input class="wl-in" data-k="cost" aria-label="Giá vốn ${esc(u.s)}" type="number" step="0.05" min="0" value="${cost || ''}" style="width:78px"></td>
-        <td><input class="wl-in" data-k="qty" aria-label="Khối lượng ${esc(u.s)}" type="number" step="100" min="0" value="${qty || ''}" style="width:88px"></td>
-        <td class="num ${toneOf(p)}">${p == null ? '–' : fmt.pct(p)}</td>
-        <td class="num">${exit ? fmt.px(exit) : '–'}</td><td class="l">${exit ? (broke ? chip('Đã thủng', 'bad') : `<span class="num muted">${fmt.pct(toExit)}</span>`) : '–'}</td>
-        <td><button class="icon-btn wl-del" aria-label="Bỏ ${esc(u.s)}">Bỏ</button></td></tr>`;
-    }).join('');
-    const top = [...sectors.entries()].sort((a, b) => b[1] - a[1])[0];
-    $('#wl-body').innerHTML = `<div class="view">
-      ${value ? `<section class="kpis" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr))">
-        ${kpi('Giá trị nắm giữ', fmt.vnd(value), `${rows.length} mã`, null)}
-        ${kpi('Lãi lỗ tạm tính', `<span class="${toneOf(pnl)}">${fmt.vnd(pnl)}</span>`, 'Theo giá vốn bạn nhập', null)}
-        ${kpi('Rủi ro nếu về mức thoát', `<span class="down">${fmt.vnd(risk)}</span>`, `${fmt.pctAbs(risk / value)} giá trị nắm giữ`, null)}
-        ${kpi('Ngành chiếm nhiều nhất', top ? fmt.pctAbs(top[1] / value, 0) : '–', top ? esc(top[0]) : '', null)}
-      </section>` : ''}
-      <section class="card" id="danh-sach"><div class="table-wrap" style="max-height:none"><table><thead><tr><th class="l">Mã</th><th>Giá</th><th>% phiên</th><th>Điểm Bền</th><th class="l">Xu hướng</th><th>Giá vốn</th><th>Khối lượng</th><th>Lãi lỗ</th><th title="Đỉnh 22 phiên trừ 3 ATR">Mức thoát</th><th class="l">Khoảng cách</th><th></th></tr></thead><tbody>${body}</tbody></table></div>
-      <p class="note" style="margin-top:8px">Mức thoát theo xu hướng bằng đỉnh 22 phiên trừ 3 ATR, được nâng dần khi giá lên. Đây là quy tắc tham chiếu.</p></section></div>`;
-    $$('.wl-in').forEach((inp) => inp.addEventListener('change', () => {
-      const s = inp.closest('tr').dataset.row;
-      state.wl[s][inp.dataset.k] = +inp.value || 0;
-      save.set('wl', state.wl);
-      drawWatch(rows);
-    }));
-    $$('.wl-del').forEach((b) => b.addEventListener('click', () => {
-      const s = b.closest('tr').dataset.row;
-      delete state.wl[s];
-      save.set('wl', state.wl);
-      renderWatch();
-    }));
-  }
-
-  /* ---- màn hình Phương pháp ---- */
-  function renderMethod() {
-    const R = store.report;
-    const P = R.portfolio;
-    const rand = R.setups.find((s) => s.key === 'random');
-    const rows = R.setups.filter((s) => s.key !== 'random').sort((a, b) => (b.all.exp ?? -9) - (a.all.exp ?? -9));
-    view().innerHTML = `<div class="view">
-      <section class="lede"><h1>Vì sao nên tin, và nên tin đến đâu</h1>
-        <p>Mọi con số trong công cụ được tính lại từ giá ngày của ${fmt.n(R.symbols)} mã, từ ${fmt.day(R.start)} đến ${fmt.day(R.asOf)}. Phần này cho biết điều gì đã được kiểm chứng và điều gì chưa.</p></section>
-      <div class="grid-eq">
-        <section class="card" id="diem-ben"><div class="card-head"><h2>Điểm Bền có phân loại được không</h2><span class="note">Xếp mã vào 5 nhóm, mỗi 10 phiên</span></div>
-          <div id="q-chart"></div>
-          <p class="note" style="margin-top:6px">Lợi suất vượt thị trường sau 20 phiên, đã tính giá mở cửa phiên kế tiếp. Nhóm 5 có điểm cao nhất.</p>
-          <div class="table-wrap" style="max-height:none;margin-top:8px"><table><thead><tr><th class="l">Nhóm</th><th>Tỷ lệ có lãi T+20</th><th>Vượt TT, 20 phiên</th><th>Vượt TT, 60 phiên</th><th>Giai đoạn trước</th><th>250 phiên cuối</th></tr></thead><tbody>
-          ${R.quintiles.map((q) => `<tr><td class="l">Nhóm ${q.q}</td><td class="num">${fmt.pctAbs(q.win20, 0)}</td><td class="num ${toneOf(q.ex20)}">${fmt.pct(q.ex20)}</td><td class="num ${toneOf(q.ex60)}">${fmt.pct(q.ex60)}</td><td class="num ${toneOf(q.early20)}">${fmt.pct(q.early20)}</td><td class="num ${toneOf(q.late20)}">${fmt.pct(q.late20)}</td></tr>`).join('')}
-          </tbody></table></div></section>
-        <section class="card" id="danh-muc"><div class="card-head"><h2>Thử nắm giữ nhóm điểm cao</h2><span class="note">20% mã điểm cao nhất, đổi danh mục mỗi 20 phiên</span></div>
-          ${legend([['Danh mục Điểm Bền, đã trừ phí', 'var(--fg)'], ['Mọi mã thanh khoản, đồng tỷ trọng', 'var(--s-ma200)']])}
-          <div id="nav-chart"></div>
-          <div class="kpis" style="grid-template-columns:repeat(2,minmax(0,1fr));margin-top:8px">
-            ${kpi('Danh mục', fmt.pct(P.ret, 1), `Sụt giảm tối đa ${fmt.pct(P.dd, 0)}`, null)}
-            ${kpi('Toàn thị trường', fmt.pct(P.baseRet, 1), `Sụt giảm tối đa ${fmt.pct(P.baseDd, 0)}`, null)}
-          </div>
-          <p class="note" style="margin-top:6px">${P.periods} kỳ từ ${fmt.day(P.start)}, vòng quay trung bình ${fmt.pctAbs(P.turnover, 0)} mỗi kỳ. Kết quả này được chọn sau khi xem dữ liệu nên có thể lạc quan.</p></section>
-      </div>
-      <section class="card" id="tin-hieu"><div class="card-head"><h2>Từng tín hiệu, đo bằng lệnh mô phỏng</h2><span class="note">Mốc ngẫu nhiên: ${fmt.r(rand.all.exp)}, thắng ${fmt.pctAbs(rand.all.win, 0)}</span></div>
-        <div class="table-wrap" style="max-height:none"><table><thead><tr><th class="l">Tín hiệu</th><th>Số lệnh</th><th>Thắng</th><th>Kỳ vọng</th><th>Khoảng 90%</th><th>Vượt ngẫu nhiên</th><th>Trước</th><th>250p cuối</th><th>Khi điểm ≥ 60</th><th class="l">Đánh giá</th></tr></thead><tbody>
-        ${rows.map((s) => `<tr title="${esc(s.rule)}"><td class="l">${esc(s.name)}</td><td class="num">${fmt.n(s.all.n)}</td><td class="num">${fmt.pctAbs(s.all.win, 0)}</td><td class="num ${toneOf(s.all.exp)}">${fmt.r(s.all.exp)}</td><td class="num muted">${fmt.n(s.all.lo, 2)} … ${fmt.n(s.all.hi, 2)}</td><td class="num ${toneOf(s.all.lift)}">${fmt.r(s.all.lift)}</td><td class="num ${toneOf(s.early.exp)}">${fmt.r(s.early.exp)}</td><td class="num ${toneOf(s.late.exp)}">${fmt.r(s.late.exp)}</td><td class="num ${toneOf(s.highScore.exp)}">${fmt.r(s.highScore.exp)}</td><td class="l">${evChip(s.all, s.late)}</td></tr>`).join('')}
-        </tbody></table></div>
-        <div class="prose" style="margin-top:10px;max-width:none"><ul>${rows.map((s) => `<li><b>${esc(s.name)}.</b> ${esc(s.rule)}</li>`).join('')}</ul></div></section>
-      <div class="grid-eq">
-        <section class="card" id="rui-ro"><div class="card-head"><h2>Rủi ro dự báo được tốt hơn lợi nhuận</h2></div>
-          <div class="table-wrap" style="max-height:none"><table><thead><tr><th class="l">Cắt lỗ cách</th><th>Bị chạm trong 20 phiên</th><th>Riêng 250 phiên cuối</th></tr></thead><tbody>${R.stops.map((s) => `<tr><td class="l num">${fmt.n(s.k, 1)} ATR</td><td class="num">${fmt.pctAbs(s.p, 0)}</td><td class="num">${fmt.pctAbs(s.late, 0)}</td></tr>`).join('')}</tbody></table></div>
-          <p class="note" style="margin-top:8px">Dải giá 80% hiệu chuẩn trên giai đoạn đầu, kiểm tra trên 250 phiên sau: phủ ${fmt.pctAbs(R.cone['5'].coverage, 0)} ở 5 phiên, ${fmt.pctAbs(R.cone['10'].coverage, 0)} ở 10 phiên, ${fmt.pctAbs(R.cone['20'].coverage, 0)} ở 20 phiên.</p></section>
-        <section class="card" id="trang-thai"><div class="card-head"><h2>Trạng thái thị trường mô tả hiện tại</h2></div>
-          <div class="table-wrap" style="max-height:none"><table><thead><tr><th class="l">Trạng thái</th><th>Số phiên</th><th>TB 20 phiên sau</th><th>Tỷ lệ dương</th></tr></thead><tbody>${R.regimeFwd.map((r) => `<tr><td class="l">${esc(REGIME[{ risk_on: 1, neutral: 0, risk_off: -1 }[r.regime]])}</td><td class="num">${fmt.n(r.n)}</td><td class="num ${toneOf(r.h20)}">${fmt.pct(r.h20)}</td><td class="num">${fmt.pctAbs(r.pos20, 0)}</td></tr>`).join('')}</tbody></table></div>
-          <p class="note" style="margin-top:8px">Lan tỏa: chỉ số trên MA50 và từ 55% mã trên MA50. Suy yếu: chỉ số dưới MA200 hoặc dưới 35% mã trên MA50. Khác biệt lợi suất sau đó không lớn, nên đừng dùng nó như tín hiệu thời điểm.</p></section>
-      </div>
-      <section class="card prose" id="gia-dinh" style="max-width:none"><h2>Giả định và giới hạn</h2><ul>
-        <li><b>Khớp lệnh:</b> tín hiệu tại giá đóng cửa, mua ở giá mở cửa phiên sau, bỏ qua lệnh mở cửa sát trần. Bán sớm nhất sau 2 phiên theo T+2.</li>
-        <li><b>Thoát lệnh:</b> cắt lỗ ${fmt.n(R.stopAtr)} ATR, chốt lời ${fmt.n(R.targetR)}R, tối đa ${R.hold} phiên, trừ ${fmt.pctAbs(R.cost)} phí và thuế khứ hồi. Thực tế còn trượt giá. Bỏ lệnh có khoảng cắt lỗ dưới 1% giá vào, vì giá đứng im làm thống kê R bị méo.</li>
-        <li><b>Thanh khoản:</b> chỉ kiểm chứng tại thời điểm mã đạt từ ${fmt.n(R.minAdv)} tỷ/phiên.</li>
-        <li><b>Thiên lệch sống sót:</b> dữ liệu chỉ gồm mã còn niêm yết, nên kết quả có thể đẹp hơn thực tế.</li>
-        <li><b>Chọn sau khi nhìn:</b> Điểm Bền được chọn sau khi xem 13 yếu tố. ATR% vượt qua hiệu chỉnh kiểm định bội, vị thế so với đỉnh thì chưa. Với ${fmt.n(R.setups.length - 1)} tín hiệu, một vài kết quả đẹp có thể do may mắn.</li>
-        <li><b>Mẫu ngắn:</b> ${fmt.n(R.sessions)} phiên, tức khoảng 3 năm, chưa đủ nhiều chu kỳ thị trường.</li>
-        <li><b>Dữ liệu:</b> nguồn eod.stock.ohlcv của FinLens, tên và ngành từ meta.symbols. ${R.repairs} phiên có hệ số điều chỉnh lệch đã được sửa theo giá khớp thật.</li>
-        <li><b>Không có:</b> dữ liệu trong phiên, báo cáo tài chính, tin tức, sự kiện doanh nghiệp. Ngày nghỉ lễ chưa được tính vào T+2.</li></ul></section>
-    </div>`;
-    drawQuintile();
-    linePlot($('#nav-chart'), {
-      dates: P.dates, height: 200, fmtY: (v) => (isNum(v) ? (v > 0 ? '+' : '') + (v * 100).toFixed(0) + '%' : '–'), refLines: [{ v: 0 }],
-      series: [{ name: 'Mọi mã thanh khoản', values: P.base.map((v) => v - 1), color: 'var(--s-ma200)' }, { name: 'Danh mục Điểm Bền', values: P.port.map((v) => v - 1), color: 'var(--fg)', width: 2 }],
-    });
-  }
-
-  function drawQuintile() {
-    const el = $('#q-chart');
-    const Q = store.report.quintiles;
-    el.classList.add('plot');
-    const draw = () => {
-      const W = Math.max(240, el.clientWidth), H = 186, m = { t: 18, b: 40 };
-      const hi = Math.max(0.01, ...Q.map((q) => q.ex20)), lo = Math.min(-0.01, ...Q.map((q) => q.ex20));
-      const y = (v) => m.t + (hi - v) / (hi - lo) * (H - m.t - m.b);
-      const bw = W / 5;
-      let s = `<svg viewBox="0 0 ${W} ${H}" height="${H}" role="img" aria-label="Lợi suất vượt thị trường theo nhóm Điểm Bền"><line x1="0" x2="${W}" y1="${y(0)}" y2="${y(0)}" stroke="var(--axis)"/>`;
-      Q.forEach((q, i) => {
-        const x = i * bw + bw * 0.22, w = bw * 0.56, top = Math.min(y(q.ex20), y(0)), h = Math.abs(y(q.ex20) - y(0));
-        s += `<rect x="${x}" y="${top}" width="${w}" height="${Math.max(1, h)}" rx="3" fill="${q.ex20 >= 0 ? 'var(--up)' : 'var(--down)'}"/>`;
-        const ly = q.ex20 >= 0 ? top - 4 : top + h + 12;
-        s += `<text x="${x + w / 2}" y="${ly}" text-anchor="middle">${esc(fmt.pct(q.ex20))}</text>`;
-        s += `<text class="lbl" x="${x + w / 2}" y="${H - 4}" text-anchor="middle">Nhóm ${q.q}</text>`;
-      });
-      el.innerHTML = s + '</svg>';
-    };
-    el._draw = draw;
-    draw();
-    plotRO.observe(el);
-  }
-
   /* ---- tìm kiếm ---- */
   function bindSearch() {
     const input = $('#search'), list = $('#search-list');
@@ -1285,7 +1109,7 @@
   }
 
   /* ---- định tuyến ---- */
-  const ROUTES = { today: 'hom-nay', screen: 'sang-loc', thong: 'phan-tich-thong', potential: 'tiem-nang', watch: 'danh-sach', method: 'phuong-phap' };
+  const ROUTES = { today: 'hom-nay', screen: 'sang-loc', thong: 'phan-tich-thong', potential: 'tiem-nang' };
 
   function go(tab, sym) {
     state.tab = tab;
@@ -1295,7 +1119,7 @@
     try { history.replaceState(null, '', '#' + token); } catch { /* khung nhúng có thể chặn */ }
     $$('.tab').forEach((b) => b.setAttribute('aria-selected', b.dataset.tab === tab));
     window.scrollTo(0, 0);
-    ({ today: renderToday, screen: renderScreen, symbol: renderSymbol, thong: renderThong, potential: renderPotential, watch: renderWatch, method: renderMethod }[tab])();
+    ({ today: renderToday, screen: renderScreen, symbol: renderSymbol, thong: renderThong, potential: renderPotential }[tab])();
   }
 
   function fromHash() {
@@ -1329,8 +1153,6 @@
         go('symbol', a.dataset.sym);
         return;
       }
-      const g = e.target.closest('[data-go]');
-      if (g) { go(g.dataset.go); return; }
       const p = e.target.closest('[data-preset]');
       if (p) { state.preset = p.dataset.preset; save.set('preset', state.preset); go('screen'); return; }
       const st = e.target.closest('[data-setup]');

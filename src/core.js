@@ -304,14 +304,6 @@
     };
   }
 
-  function chandelier(bars, atrSeries) {
-    const last = bars.length - 1;
-    const a = atrSeries[last];
-    if (a == null) return null;
-    const high = Math.max(...bars.slice(-22).map((b) => b.h));
-    return { stop: high - 3 * a, high };
-  }
-
   /* ---- đọc bằng chứng ---- */
   /* "Có bằng chứng" đòi hỏi cả ba: vượt ngẫu nhiên, kỳ vọng dương rõ, và không sụp ở giai đoạn gần đây. */
   function evidenceLabel(b, late) {
@@ -329,6 +321,6 @@
 
   window.Core = {
     COL, LIMIT, TREND, REGIME, esc, fold, isNum, fmt, toneOf, store, loadAll, loadSymbol, sma, ewm, rsi, macd, atr, bollinger, weekly,
-    buildSeries, volumeProfile, loadThong, evalThong, tick, priceLimits, settleDate, stopHitChance, plan, chandelier, evidenceLabel, setup, quintileOf,
+    buildSeries, volumeProfile, loadThong, evalThong, tick, priceLimits, settleDate, stopHitChance, plan, evidenceLabel, setup, quintileOf,
   };
 })();
