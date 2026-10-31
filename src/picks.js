@@ -82,7 +82,7 @@
     const lens = LENSES.find((l) => l.id === o.lens) || LENSES[0];
     const q = fold(o.q.trim());
     return lensRows(lens)
-      .filter((r) => (!o.sector || r.u.sector === o.sector) && (!o.easy || r.u.adv >= 10) && (!q || r.u.key.includes(q)))
+      .filter((r) => (!o.sector || r.u.sector === o.sector) && (!o.exchange || r.u.ex === o.exchange) && (!o.easy || r.u.adv >= 10) && (!q || r.u.key.includes(q)))
       .map((r) => ({ ...r, pts: scoreOf(r) }))
       .sort((a, b) => TIERS[a.tier] - TIERS[b.tier] || b.pts - a.pts);
   }
@@ -92,6 +92,7 @@
     const F = Object.fromEntries(P.funnel.map((x) => [x.key, x.n]));
     const top = P.rows.filter((r) => r.tier === 'first').map((r) => r.s);
     const sectors = [...new Set(P.rows.map((r) => store.bySym.get(r.s)?.sector))].filter(Boolean).sort((a, b) => a.localeCompare(b, 'vi'));
+    const exchanges = [...new Set(P.rows.map((r) => store.bySym.get(r.s)?.ex))].filter(Boolean).sort();
     $('#view').innerHTML = `<div class="view">
       <section class="lede" id="tim-ma">
         <h1>${top.length ? `Hôm nay có ${top.length} mã đạt chuẩn cao nhất: ${esc(top.join(', '))}` : 'Hôm nay chưa có mã đạt chuẩn cao nhất'}</h1>
@@ -103,6 +104,7 @@
         </div>
         <div class="find-tools">
           <label>Ngành <select id="pk-sector"><option value="">Tất cả</option>${sectors.map((x) => `<option ${o.sector === x ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select></label>
+          <label>Sàn <select id="pk-exchange"><option value="">Tất cả</option>${exchanges.map((x) => `<option ${o.exchange === x ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select></label>
           <label>Xếp theo <select id="pk-style">${Object.entries(P.styles).map(([k, s]) => `<option value="${k}" ${o.style === k ? 'selected' : ''}>${esc(s.name)}</option>`).join('')}</select></label>
           <label class="check"><input id="pk-easy" type="checkbox" ${o.easy ? 'checked' : ''}> Chỉ mã từ 10 tỷ mỗi phiên</label>
           <input id="pk-q" type="search" aria-label="Lọc danh sách" placeholder="Lọc theo mã, tên" value="${esc(o.q)}">
@@ -122,6 +124,7 @@
       drawTable();
     }));
     $('#pk-sector').addEventListener('change', (e) => { o.sector = e.target.value; keep(); drawTable(); });
+    $('#pk-exchange').addEventListener('change', (e) => { o.exchange = e.target.value; keep(); drawTable(); });
     $('#pk-style').addEventListener('change', (e) => { o.style = e.target.value; keep(); drawTable(); });
     $('#pk-easy').addEventListener('change', (e) => { o.easy = e.target.checked; keep(); drawTable(); });
     $('#pk-q').addEventListener('input', (e) => { o.q = e.target.value; keep(); drawTable(); });

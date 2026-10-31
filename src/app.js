@@ -16,7 +16,7 @@
 
   const state = {
     tab: 'find', sym: null, tf: 'd', chart: null, thData: null, sel: 0, list: [],
-    pick: Object.assign({ lens: 'best', style: 'defensive', sector: '', q: '', easy: false }, save.get('pick', {})),
+    pick: Object.assign({ lens: 'best', style: 'defensive', sector: '', exchange: '', q: '', easy: false }, save.get('pick', {})),
     basket: Object.assign({ syms: [], capital: 1000, risk: 1 }, save.get('basket', {})),
     show: Object.assign({ ma20: true, ma50: true, ma200: true, bb: false, sr: true, plan: true, markers: false, profile: false, ema: false, poc: false }, save.get('show', {})),
     panes: save.get('panes', ['volume']),

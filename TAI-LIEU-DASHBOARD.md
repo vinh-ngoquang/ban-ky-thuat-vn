@@ -564,7 +564,7 @@ Không dùng EPS nguồn vì với doanh nghiệp thường, ở Q2 2026 nó kh�
 
 Chấm Điểm vào so khoảng trống tới kháng cự với mức có thể lỗ. Trụ Điểm mua trong cột Điểm đo khoảng cách tới MA20, nên hai số có thể trái chiều.
 
-Bộ lọc gồm ngành, cách xếp theo phong cách, chỉ mã từ 10 tỷ mỗi phiên, tìm kiếm. Phím `↑ ↓` chọn dòng, `Enter` mở mã, `/` mở ô tìm kiếm.
+Bộ lọc gồm ngành, sàn, cách xếp theo phong cách, chỉ mã từ 10 tỷ mỗi phiên, tìm kiếm. Phím `↑ ↓` chọn dòng, `Enter` mở mã, `/` mở ô tìm kiếm.
 
 ### Bước 2: Xem mã
 
