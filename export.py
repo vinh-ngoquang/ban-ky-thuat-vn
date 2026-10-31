@@ -260,6 +260,7 @@ def main():
     }
     report["thongAlt"] = thong_long(d, m)
     report["potential"] = potential_report(d, m)
+    report["picks"] = picks_report(d, ev)
     code = {"risk_on": 1, "neutral": 0, "risk_off": -1}
     market = {
         "dates": day, "comp": clean(m["comp"], 2), "ma50": clean(m["ma50"], 2), "ma200": clean(m["ma200"], 2),
@@ -343,6 +344,183 @@ def main():
     dump(DATA / "thong.json", thong_table(d, syms))
     size = sum(p.stat().st_size for p in DATA.rglob("*.json"))
     print(f"Đã ghi {len(universe)} mã, {shard_no + 1} mảnh, tổng {size / 1e6:.1f} MB, phiên cuối {day[-1]}, sửa {len(d['repairs'])} phiên lệch hệ số")
+
+
+def topn_portfolio(d, score, n=10):
+    """Giữ n mã điểm cao nhất, đổi mỗi 20 phiên, so với toàn thị trường và VNINDEX cùng thời điểm."""
+    c, o, liquid = d["c"], d["o"], d["liquid"]
+    dates = c.index
+    path = E.CACHE / "vnindex.pkl"
+    index = None
+    if path.exists():
+        raw = pd.read_pickle(path)
+        index = raw.set_index(pd.to_datetime(raw["date"]))["close"].astype(float).reindex(dates).ffill()
+    nav, base, vn, when, held = [1.0], [1.0], [1.0], [], []
+    hold = set()
+    for i in range(210, len(dates) - 1, 20):
+        ranked = score.iloc[i].dropna().sort_values(ascending=False)
+        top = list(ranked.index[:n])
+        end = min(i + 21, len(dates) - 1)
+        if end <= i + 1:
+            continue
+        churn = (1 - len(set(top) & hold) / len(top)) if top else (1.0 if hold else 0.0)
+        r = (c[top].iloc[end] / o[top].iloc[i + 1] - 1).mean() if top else 0.0
+        uni = list(liquid.iloc[i][liquid.iloc[i]].index)
+        ru = (c[uni].iloc[end] / o[uni].iloc[i + 1] - 1).mean()
+        nav.append(nav[-1] * (1 + r - churn * E.COST))
+        base.append(base[-1] * (1 + ru))
+        if index is not None:
+            vn.append(vn[-1] * index.iloc[end] / index.iloc[i + 1])
+        when.append(str(dates[end].date()))
+        held.append(len(top))
+        hold = set(top)
+    drawdown = lambda x: float((pd.Series(x) / pd.Series(x).cummax() - 1).min())
+    out = {"dates": when, "port": clean(nav[1:], 4), "base": clean(base[1:], 4), "ret": num(nav[-1] - 1), "baseRet": num(base[-1] - 1),
+           "dd": num(drawdown(nav)), "baseDd": num(drawdown(base)), "periods": len(when), "avgHeld": num(np.mean(held), 1), "start": str(dates[211].date())}
+    if index is not None:
+        out.update(vn=clean(vn[1:], 4), vnRet=num(vn[-1] - 1), vnDd=num(drawdown(vn)))
+    return out
+
+
+def vn_series(d):
+    """VNINDEX theo từng phiên của dashboard, chỉ để so sánh hiệu quả của giỏ."""
+    path = E.CACHE / "vnindex.pkl"
+    if not path.exists():
+        return {}
+    raw = pd.read_pickle(path)
+    index = raw.set_index(pd.to_datetime(raw["date"]))["close"].astype(float).reindex(d["c"].index).ffill().bfill()
+    return {"vnAt": clean(index, 2), "vnFirst": num(index.iloc[0], 2), "vnLast": num(index.iloc[-1], 2)}
+
+
+def fin_report(d):
+    """Tài chính 8 quý và phép tính P/E hiện tại của mã đủ thanh khoản. Chỉ để hiển thị.
+
+    P/E lấy báo cáo đã qua FIN_LAG_DAYS. EPS tự tính vì EPS nguồn của doanh nghiệp thường chậm một quý và gồm cả cổ đông thiểu số. Số cổ phiếu là
+    số lớn hơn giữa vốn điều lệ và số suy từ giá trị sổ sách (số này thường đi trước vốn điều lệ một quý),
+    nhân hệ số chia cổ phiếu sau cuối kỳ. Lấy theo cách này khớp số quý sau trong 5% ở 95% trường hợp.
+    """
+    path = E.CACHE / "fin.pkl"
+    if not path.exists():
+        return None
+    x = pd.read_pickle(path)
+    if (E.CACHE / "stmt.pkl").exists():
+        x = pd.concat([x, pd.read_pickle(E.CACHE / "stmt.pkl")], ignore_index=True)
+    x = x[x["quarter"].isin([1, 2, 3, 4])].copy()
+    x["symbol"] = x["symbol"].astype(str)
+    idx, cols = d["c"].index, d["c"].columns
+    price = d["raw_close"].ffill().iloc[-1] * 1000
+    fac = (d["c"] / d["raw_close"]).ffill()
+    wide = x.pivot_table(index=["symbol", "year", "quarter"], columns="code", values="value", aggfunc="last").reset_index()
+    rows = {}
+    for s, g in wide.groupby("symbol"):
+        if s not in cols or not d["liquid"].iloc[-1].get(s, False):
+            continue
+        g = g.sort_values(["year", "quarter"]).copy()
+        col = lambda k: g[k] if k in g else pd.Series(np.nan, index=g.index)
+        g["profit"] = (col("parent") - col("minority").fillna(0)).fillna(col("npat"))
+        pos = g["year"] * 4 + g["quarter"]
+        g["ttm"] = g["profit"].rolling(4).sum().where(pos.diff(3) == 3)   # bỏ khi thiếu quý giữa chừng
+        g["shares"] = pd.concat([col("capital") / 1e4, col("total_equity") / col("bvps")], axis=1).max(axis=1)
+        g["sales"] = col("revenue").fillna(col("total_operating_income")).fillna(col("total_operating_revenue"))
+        g["eps_calc"] = g["ttm"] / g["shares"]
+        qend = pd.PeriodIndex.from_fields(year=g["year"].astype(int), quarter=g["quarter"].astype(int), freq="Q").end_time.normalize()
+        used = g[qend + pd.Timedelta(days=E.FIN_LAG_DAYS) <= idx[-1]].tail(1)
+        now = None
+        if len(used) and pd.notna(used["eps_calc"].iloc[0]) and pd.notna(price[s]) and used["eps_calc"].iloc[0] != 0:
+            u, end = used.iloc[0], qend[g.index.get_loc(used.index[0])]
+            if (idx >= end + pd.Timedelta(days=E.FIN_LAG_DAYS)).sum() <= E.FIN_STALE:
+                past = fac[s][fac.index <= end].dropna()
+                split = float(fac[s].iloc[-1] / past.iloc[-1]) if len(past) else 1.0
+                split = split if split >= E.SPLIT_MIN else 1.0
+                shares = u["shares"] * split
+                now ={"q": f"Q{int(u.quarter)} {int(u.year)}", "ttm": num(u["ttm"] / 1e9, 1), "shares": num(shares / 1e6, 1), "split": num(split, 3),
+                       "eps": num(u["ttm"] / shares, 0), "price": num(price[s], 0)}
+        ty = lambda r, k: num(r.get(k) / 1e9, 1) if pd.notna(r.get(k)) else None
+        hist = [{"q": f"Q{int(r.quarter)} {int(r.year)}", "sales": ty(r, "sales"), "profit": ty(r, "profit"), "ttm": ty(r, "ttm"), "equity": ty(r, "total_equity"),
+                 "shares": num(r.get("shares") / 1e6, 1), "roe": num(r.get("roe")), "npat": num(r.get("npat_growth")), "rev": num(r.get("revenue_growth")),
+                 "eps": num(r.get("eps"), 0), "epsCalc": num(r.get("eps_calc"), 0), "npl": num(r.get("npl_ratio"), 4)} for _, r in g.tail(8).iterrows()]
+        rows[s] = {"now": now, "hist": hist}
+    return {"lag": E.FIN_LAG_DAYS, "rows": rows}
+
+
+def picks_report(d, ev):
+    """Dữ liệu tab Chọn mã: mọi mã đủ thanh khoản, phễu lọc và bằng chứng so với VNINDEX."""
+    t = len(d["c"]) - 1
+    syms = list(d["c"].columns)
+    H, L, C, V = (d[k].to_numpy() for k in ("h", "l", "c", "v"))
+    liquid = d["liquid"].iloc[-1]
+    gate = d["pot_gate"].iloc[-1]
+    pot = d["pot"].iloc[-1]
+    rows = []
+    for j, s in enumerate(syms):
+        if not liquid.iat[j]:
+            continue
+        score, trend, ext = d["score"].iat[t, j], d["trend"].iat[t, j], d["ext"].iat[t, j]
+        cell = E.thong_cell(d, t, j, E.THONG_WINDOW)
+        checks = [bool(d["t1"].iat[t, j]), bool(d["t2"].iat[t, j]), bool(d["t3"].iat[t, j]),
+                  bool(cell and E.base_ok(cell)), bool(cell and E.poc_rising(cell))]
+        count = sum(checks)
+        fails = []
+        if not score >= E.POT_MIN_SCORE:
+            fails.append("score")
+        if trend not in ("strong", "up"):
+            fails.append("trend")
+        if not ext <= E.POT_MAX_EXT:
+            fails.append("ext")
+        flags = []
+        if d["veto_broke"].iat[t, j]:
+            flags.append("broke")
+        if d["veto_dump"].iat[t, j]:
+            flags.append("dump")
+        pillars = {k: num(d["pick_pillars"][k].iat[t, j], 1) for k in ("ben", "trend", "signal", "buy", "liq")}
+        pillars["thong"] = float(count * 20)
+        idx = np.flatnonzero(np.isfinite(C[:, j]))
+        atr = float(d["atr"].iat[t, j])
+        near = levels(H[idx, j], L[idx, j], C[idx, j], V[idx, j], atr)
+        res = min((x["price"] for x in near if x["kind"] == "res"), default=None)
+        sup = max((x["price"] for x in near if x["kind"] == "sup"), default=None)
+        pts = pot.iat[j]
+        if not gate.iat[j]:
+            tier = "out"
+        elif flags:
+            tier = "avoid"
+        else:
+            tier = "first" if pts >= E.POT_A else "second" if pts >= E.POT_B else "watch"
+        rows.append({"s": s, "tier": tier, "pot": num(pts, 1), "pillars": pillars, "checks": checks, "fails": fails, "flags": flags,
+                     "res": res, "sup": sup, "stop": num(E.STOP_ATR * atr / C[t, j])})
+    # phễu theo thứ tự lọc
+    total = int(d["close"].notna().any().sum())
+    left = rows
+    funnel = [{"key": "all", "n": total}, {"key": "liquid", "n": len(left)}]
+    for key in ("score", "trend", "ext"):
+        left = [r for r in left if key not in r["fails"]]
+        funnel.append({"key": key, "n": len(left)})
+    left = [r for r in left if not r["flags"]]
+    funnel.append({"key": "clean", "n": len(left)})
+    funnel.append({"key": "second", "n": sum(r["tier"] in ("first", "second") for r in rows)})
+    funnel.append({"key": "first", "n": sum(r["tier"] == "first" for r in rows)})
+
+    comp = ev[ev["complete"]]
+    def stress(key):
+        x = comp[comp.setup == key]
+        return {"n": int(len(x)), "ret": num(x["ret"].mean()), "risk": num(x["risk_pct"].mean()), "bars": num(x["bars"].mean(), 1),
+                "s0": num(x["r"].mean(), 3), "s2": num(((x["ret"] - 0.002) / x["risk_pct"]).mean(), 3), "s5": num(((x["ret"] - 0.005) / x["risk_pct"]).mean(), 3)}
+    a = comp[comp.setup == "pot_a"]
+    quarters = [{"q": str(q).replace("Q", " Q"), "n": int(len(g)), "exp": num(g["r"].mean(), 2)} for q, g in a.groupby(a["date"].dt.to_period("Q"))]
+    wins = a["r"].nlargest(10).sum()
+    styles = {}
+    clean = ~(d["veto_broke"] | d["veto_dump"])
+    for key, cfg in E.PICK_STYLES.items():
+        f = E.pick_score(d, cfg["w"]).where(clean)
+        p = topn_portfolio(d, f, 10)
+        styles[key] = {"name": cfg["name"], "note": cfg["note"], "w": cfg["w"], "ret": p["ret"], "dd": p["dd"]}
+    f = d["pick_pts"].where(clean)
+    top10, top5 = topn_portfolio(d, f, 10), topn_portfolio(d, f, 5)
+    return {"rows": rows, "funnel": funnel, "gradeA": E.POT_A, "gradeB": E.POT_B, "minScore": E.POT_MIN_SCORE, "maxExt": E.POT_MAX_EXT,
+            "styles": styles, "top10": top10, "top5": {k: top5[k] for k in ("ret", "dd")},
+            "stress": {"first": stress("pot_a"), "second": stress("pot_b"), "random": stress("random")},
+            "quarters": quarters, "topShare": num(wins / a["r"].sum() if a["r"].sum() > 0 else None, 2),
+            "avgPerDay": num((d["pot"] >= E.POT_A).sum(axis=1).mean(), 2), "dump": E.PICK_DUMP, "fin": fin_report(d), **vn_series(d)}
 
 
 def thong_long(d, m):
@@ -430,13 +608,10 @@ def thong_table(d, syms):
             if e10[t - k, j] > e20[t - k, j] and e10[t - k - 1, j] <= e20[t - k - 1, j]:
                 cross = k
                 break
-        windows = {}
-        for w in E.THONG_WINDOWS:
-            m = E.thong_cell(d, t, j, w)
-            if m:
-                windows[str(w)] = [num(m["range"]), num(m["tight"]), num(m["vol"], 3), num(m["sup"], 3), num(m["p1"], 2), num(m["p2"], 2), num(m["p3"], 2)]
-        out[s] = {"e": [num(d[f"ema{n}"].iat[t, j], 3) for n in (10, 20, 50, 150, 200)], "c": num(closes[t, j], 2), "x": cross, "w": windows}
-    return {"windows": list(E.THONG_WINDOWS), "default": E.THONG_WINDOW, "maxSpread": E.THONG_MAX_SPREAD,
+        m = E.thong_cell(d, t, j, E.THONG_WINDOW)
+        base = [num(m["range"]), num(m["tight"]), num(m["vol"], 3), num(m["sup"], 3), num(m["p1"], 2), num(m["p2"], 2), num(m["p3"], 2)] if m else None
+        out[s] = {"e": [num(d[f"ema{n}"].iat[t, j], 3) for n in (10, 20, 50, 150, 200)], "c": num(closes[t, j], 2), "x": cross, "w": base}
+    return {"window": E.THONG_WINDOW, "maxSpread": E.THONG_MAX_SPREAD,
             "maxRange": E.THONG_MAX_RANGE, "tight": E.THONG_TIGHT, "rows": out}
 
 

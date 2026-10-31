@@ -1,6 +1,6 @@
 """Cập nhật dữ liệu rồi dựng lại trang.
 
-Mỗi lần tốn khoảng 130 request. SDK rải đều hạn mức còn lại tới nửa đêm, nên thời gian chạy
+Mỗi lần tốn khoảng 180 request. SDK rải đều hạn mức còn lại tới nửa đêm, nên thời gian chạy
 phụ thuộc giờ trong ngày: khoảng 25 phút lúc 18:00, 6 phút lúc gần nửa đêm, hơn 1 giờ buổi sáng.
 Có sẵn cache: chỉ tải 20 ngày gần nhất, và tải lại riêng mã có giá điều chỉnh thay đổi.
 """
@@ -63,9 +63,11 @@ def main():
         cutoff = pd.Timestamp(end - dt.timedelta(days=F.HISTORY_DAYS))
         adjusted = adjusted[adjusted["date"] >= cutoff].reset_index(drop=True)
         raw = raw[raw["date"] >= cutoff].reset_index(drop=True)
+        F.fetch_index(client, end - dt.timedelta(days=F.HISTORY_DAYS), end)
         meta.to_pickle(F.CACHE / "meta.pkl")
         adjusted.to_pickle(F.CACHE / "adjusted.pkl")
         raw.to_pickle(F.CACHE / "raw.pkl")
+        F.fetch_financials(raw)
         last = adjusted["date"].max().date()
         print(f"Dữ liệu đến {last}, còn {client.limits()['requests_remaining']} request hôm nay", flush=True)
 

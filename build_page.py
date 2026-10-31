@@ -20,7 +20,7 @@ def full_page():
 def main():
     tpl = (SRC / "index.tpl.html").read_text(encoding="utf-8")
     css = (SRC / "app.css").read_text(encoding="utf-8")
-    js = "\n".join((SRC / f).read_text(encoding="utf-8") for f in ("core.js", "chart.js", "app.js"))
+    js = "\n".join((SRC / f).read_text(encoding="utf-8") for f in ("core.js", "chart.js", "picks.js", "app.js"))
     page = tpl.replace("/*__CSS__*/", css).replace("/*__JS__*/", js.replace("</script", "<\\/script"))
     out = ROOT / "site" / "index.html"
     out.parent.mkdir(exist_ok=True)

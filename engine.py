@@ -57,13 +57,32 @@ POT_THONG_PTS = 6              # điểm cho mỗi tiêu chí Thông
 POT_BONUS = {"leader": 20, "pullback": 10, "golden": 10}
 POT_SIGNAL_WINDOW = 3          # tín hiệu còn hiệu lực trong 3 phiên
 
+# Chọn mã: 6 trụ dùng để xếp hạng và giải thích, không dùng để xếp hạng mức.
+# Hạng mức lấy theo Mã tiềm năng, vì ngưỡng theo điểm 6 trụ không chọn lọc được (xem research4.py).
+PICK_STYLES = {
+    "balanced": {"name": "Cân bằng", "note": "Trọng số chính, được kiểm chứng đầu tiên",
+                 "w": {"ben": 35, "trend": 20, "thong": 15, "signal": 15, "buy": 10, "liq": 5}},
+    "defensive": {"name": "Phòng thủ", "note": "Ưu tiên mã ổn định, thanh khoản tốt",
+                  "w": {"ben": 55, "trend": 15, "thong": 5, "signal": 5, "buy": 10, "liq": 10}},
+    "momentum": {"name": "Theo xu hướng", "note": "Ưu tiên xu hướng và tín hiệu",
+                 "w": {"ben": 15, "trend": 35, "thong": 5, "signal": 30, "buy": 5, "liq": 10}},
+    "accumulate": {"name": "Tích lũy", "note": "Ưu tiên tiêu chí của Thông",
+                   "w": {"ben": 20, "trend": 15, "thong": 45, "signal": 5, "buy": 10, "liq": 5}},
+}
+PICK_WEIGHTS = PICK_STYLES["balanced"]["w"]
+PICK_DUMP = -0.03              # cờ: giảm từ 3% với khối lượng từ 1,5 lần trung bình
+
 # Bộ lọc "Phân tích của Thông"
-THONG_WINDOWS = (20, 30, 40)   # số phiên của mỗi đoạn nền; POC so sánh qua 3 đoạn liên tiếp
-THONG_WINDOW = 30              # mặc định dùng để kiểm chứng
+THONG_WINDOW = 40              # số phiên của mỗi đoạn nền, khoảng 2 tháng; POC so sánh qua 3 đoạn liên tiếp
 THONG_MAX_SPREAD = 0.20        # EMA50 cách EMA150, EMA200 tối đa
 THONG_MAX_RANGE = 0.20         # biên độ cao nhất so với thấp nhất của nền tối đa
 THONG_TIGHT = 0.6              # biên 10 phiên cuối không quá 60% biên cả nền
 POC_BINS = 24
+
+# Tài chính chỉ để hiển thị, không tính vào điểm hay hạng
+FIN_LAG_DAYS = 60              # API không có ngày công bố: chỉ dùng số liệu sau 60 ngày kể từ cuối quý
+FIN_STALE = 140                # bỏ số liệu cũ hơn số dòng này, tránh giữ mãi báo cáo của mã ngừng công bố
+SPLIT_MIN = 1.08               # hệ số điều chỉnh giá từ mức này mới coi là chia cổ phiếu, thấp hơn thường là cổ tức tiền
 
 
 def poc_price(h, l, v, bins=POC_BINS):
@@ -345,6 +364,7 @@ def signals(d):
     points = potential(d)
     for name, level in (("pot_a", POT_A), ("pot_b", POT_B)):
         out[name] = _first_in((points >= level) & d["traded"], COOLDOWN)
+    picks(d)
     return out
 
 
@@ -365,7 +385,36 @@ def potential(d):
             extra[t, j] = (int(base_ok(m)) + int(poc_rising(m))) * POT_THONG_PTS   # int: cộng hai bool numpy cho ra 1, không phải 2
     d["pot_bonus"] = bonus
     d["pot"] = points + extra
+    d["pot_gate"] = gate
+    d["thong_n"] = (t123 + extra / POT_THONG_PTS).where(gate)
     return d["pot"]
+
+
+def picks(d):
+    """6 trụ của Chọn mã và các cờ cảnh báo. Điểm chỉ tính trên mã qua cổng bắt buộc."""
+    gate = d["pot_gate"]
+    alive = lambda key: d["signals"][key].astype(float).rolling(POT_SIGNAL_WINDOW, min_periods=1).max() > 0
+    idx, cols = gate.index, gate.columns
+    pillar = {}
+    pillar["ben"] = d["score"]
+    pillar["trend"] = d["trend"].replace({"strong": 100.0, "up": 70.0, "side": 40.0, "new": 40.0, "down": 0.0}).astype(float)
+    pillar["thong"] = d["thong_n"] * 20
+    sig = pd.DataFrame(30.0, index=idx, columns=cols)
+    sig = sig.where(~(alive("pullback") | alive("golden")), 60.0).where(~alive("leader"), 100.0)
+    pillar["signal"] = sig
+    ext = d["ext"]
+    buy = pd.DataFrame(100.0, index=idx, columns=cols)
+    buy = buy.where(ext <= 1.5, 70.0).where(ext <= 2.5, 30.0).where(ext >= -1, 60.0)
+    pillar["buy"] = buy
+    pillar["liq"] = ((np.log10(d["adv20"] / MIN_ADV) / np.log10(100 / MIN_ADV)).clip(0, 1) * 100)
+    d["pick_pillars"] = pillar
+    d["pick_pts"] = pick_score(d, PICK_WEIGHTS)
+    d["veto_broke"] = alive("breakdown") | alive("death")
+    d["veto_dump"] = (d["ret"] <= PICK_DUMP) & (d["vol_ratio"] >= 1.5)
+
+
+def pick_score(d, weights):
+    return (sum(d["pick_pillars"][k] * w for k, w in weights.items()) / 100).where(d["pot_gate"])
 
 
 def simulate(d, m):

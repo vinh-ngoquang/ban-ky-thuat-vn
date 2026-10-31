@@ -7,12 +7,10 @@
 <header class="top">
   <div class="top-in">
     <div class="brand"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>Bàn Kỹ Thuật VN</div>
-    <nav class="tabs" role="tablist" aria-label="Màn hình">
-      <button class="tab" role="tab" data-tab="today" aria-selected="true">Hôm nay</button>
-      <button class="tab" role="tab" data-tab="screen" aria-selected="false">Sàng lọc</button>
-      <button class="tab" role="tab" data-tab="symbol" aria-selected="false">Phân tích mã</button>
-      <button class="tab" role="tab" data-tab="thong" aria-selected="false">Phân tích của Thông</button>
-      <button class="tab" role="tab" data-tab="potential" aria-selected="false">Mã tiềm năng</button>
+    <nav class="tabs" role="tablist" aria-label="Các bước">
+      <button class="tab" role="tab" data-tab="find" aria-selected="true"><span class="step">1</span>Tìm mã</button>
+      <button class="tab" role="tab" data-tab="symbol" aria-selected="false"><span class="step">2</span>Xem mã</button>
+      <button class="tab" role="tab" data-tab="basket" aria-selected="false"><span class="step">3</span>Giỏ của tôi <b id="basket-count" class="count" hidden>0</b></button>
     </nav>
     <div class="search" role="search">
       <input id="search" type="search" role="combobox" aria-expanded="false" aria-controls="search-list" aria-label="Tìm mã cổ phiếu" placeholder="Tìm mã hoặc tên công ty" autocomplete="off" spellcheck="false">
@@ -20,8 +18,31 @@
       <div class="search-list" id="search-list" role="listbox" hidden></div>
     </div>
     <div class="top-meta"><span><span class="asof-long">Dữ liệu đến </span><b id="asof" class="num">–</b></span>
+      <button class="icon-btn" id="help-btn" aria-controls="help">Hướng dẫn</button>
       <button class="icon-btn" id="theme" aria-label="Đổi giao diện sáng tối">Sáng/tối</button></div>
   </div>
 </header>
+<section id="help" class="help" hidden aria-label="Hướng dẫn sử dụng"><div class="help-in">
+  <div class="help-head"><h2>Dùng công cụ này trong 3 bước</h2><button class="icon-btn" id="help-close">Đã hiểu</button></div>
+  <ol class="help-steps">
+    <li><b>Tìm mã.</b> Chọn một nhóm như Đáng xem nhất. Công cụ đã lọc từ hơn 1.600 mã xuống vài mã.</li>
+    <li><b>Xem mã.</b> Đọc kết luận và 4 điều kiện ở đầu trang. Nếu quan tâm, xem phần Nếu muốn mua để biết mức cắt lỗ và số lượng.</li>
+    <li><b>Giỏ của tôi.</b> Gom từ 8 mã trở lên để xem cần bao nhiêu vốn và rủi ro cả giỏ.</li>
+  </ol>
+  <details class="glossary"><summary>Giải thích thuật ngữ</summary><dl>
+    <div><dt>Điểm Bền</dt><dd>Mã càng ít biến động và càng gần đỉnh 52 tuần thì điểm càng cao.</dd></div>
+    <div><dt>Điểm</dt><dd>Điểm tổng hợp từ độ bền, xu hướng, tiêu chí của Thông, tín hiệu, điểm vào và thanh khoản. Chỉ so giữa các mã cùng kết luận.</dd></div>
+    <div><dt>Thanh khoản</dt><dd>Giá trị giao dịch trung bình mỗi phiên trong 20 phiên. Mã dưới 3 tỷ bị loại khỏi danh sách.</dd></div>
+    <div><dt>Cắt lỗ</dt><dd>Mức giá bạn định bán để dừng lỗ, tính theo mức dao động bình thường của mã.</dd></div>
+    <div><dt>Kháng cự</dt><dd>Vùng giá trước đây hay gặp lực bán. Mua sát kháng cự thì khoảng lời ít.</dd></div>
+    <div><dt>Hỗ trợ</dt><dd>Vùng giá trước đây hay có lực mua đỡ.</dd></div>
+    <div><dt>Điểm vào</dt><dd>So khoảng tới kháng cự với mức có thể lỗ. Đẹp khi khoảng lời gấp từ 2 lần mức lỗ.</dd></div>
+    <div><dt>MA, EMA</dt><dd>Đường giá trung bình. Giá nằm trên các đường này thường là xu hướng tăng.</dd></div>
+    <div><dt>RSI</dt><dd>Thang 0 đến 100 đo đà tăng giảm. Trên 50 là đà dương.</dd></div>
+    <div><dt>ATR</dt><dd>Mức dao động trung bình mỗi phiên của mã.</dd></div>
+    <div><dt>POC</dt><dd>Mức giá có khối lượng giao dịch lớn nhất trong một giai đoạn.</dd></div>
+    <div><dt>1R</dt><dd>Số tiền bạn chấp nhận mất cho một lệnh. Kết quả +2R nghĩa là lời gấp đôi số đó.</dd></div>
+  </dl></details>
+</div></section>
 <main id="view"><p class="skeleton">Đang tải dữ liệu thị trường…</p></main>
 <script>/*__JS__*/</script>

@@ -17,7 +17,7 @@
     pct: (x, d = 1) => (isNum(x) ? (x > 0 ? '+' : '') + vi(x * 100, d) + '%' : '–'),
     pctAbs: (x, d = 1) => (isNum(x) ? vi(x * 100, d) + '%' : '–'),
     n: (x, d = 0) => (isNum(x) ? vi(x, d) : '–'),
-    r: (x, d = 2) => (isNum(x) ? (x > 0 ? '+' : '') + vi(x, d) + 'R' : '–'),
+    r: (x, d = 2) => { if (!isNum(x)) return '–'; const v = Number(x.toFixed(d)) || 0; return (v > 0 ? '+' : '') + vi(v, d) + 'R'; },
     ty: (x) => (!isNum(x) ? '–' : x >= 1000 ? vi(x / 1000, 1) + ' nghìn tỷ' : x >= 10 ? vi(x, 0) + ' tỷ' : vi(x, 1) + ' tỷ'),
     vnd: (x) => {
       if (!isNum(x)) return '–';
@@ -60,7 +60,11 @@
     if (store.decoded.has(sym)) return store.decoded.get(sym);
     const u = store.bySym.get(sym);
     if (!u) throw new Error('Không có mã ' + sym);
-    if (!store.shards.has(u.shard)) store.shards.set(u.shard, getJson('data/s/' + u.shard + '.json'));
+    if (!store.shards.has(u.shard)) {
+      const pending = getJson('data/s/' + u.shard + '.json');
+      pending.catch(() => store.shards.delete(u.shard));    // lỗi mạng thì lần sau tải lại
+      store.shards.set(u.shard, pending);
+    }
     const shard = await store.shards.get(u.shard);
     const out = decode(shard[sym], u);
     store.decoded.set(sym, out);
@@ -68,7 +72,10 @@
   }
 
   async function loadThong() {
-    if (!store.thong) store.thong = getJson('data/thong.json');
+    if (!store.thong) {
+      store.thong = getJson('data/thong.json');
+      store.thong.catch(() => { store.thong = null; });
+    }
     return store.thong;
   }
 
@@ -84,7 +91,7 @@
     const s150 = has ? Math.abs(e50 / e150 - 1) : null;
     const s200 = has ? Math.abs(e50 / e200 - 1) : null;
     const t3 = has && s150 < T.maxSpread && s200 < T.maxSpread;
-    const w = row.w[String(opt.window)];
+    const w = row.w;
     let t4 = false, t5 = false, base = null;
     if (w) {
       const [range, tight, vol, sup, p1, p2, p3] = w;
@@ -249,20 +256,6 @@
     return { ceil, floor, lim };
   }
 
-  /* Ngày có thể bán sớm nhất: phiên mua + 2 ngày làm việc, chưa trừ ngày nghỉ lễ. */
-  function settleDate(asOf) {
-    let d = new Date(asOf + 'T00:00:00Z');
-    let buyDay = null, left = 3;
-    while (left > 0) {
-      d = new Date(d.getTime() + 864e5);
-      if (d.getUTCDay() % 6 === 0) continue;
-      left--;
-      if (!buyDay) buyDay = d;
-    }
-    const iso = (x) => x.toISOString().slice(0, 10);
-    return { buy: iso(buyDay), sell: iso(d) };
-  }
-
   function stopHitChance(k) {
     const t = store.report.stops;
     if (k <= t[0].k) return t[0].p;
@@ -321,6 +314,6 @@
 
   window.Core = {
     COL, LIMIT, TREND, REGIME, esc, fold, isNum, fmt, toneOf, store, loadAll, loadSymbol, sma, ewm, rsi, macd, atr, bollinger, weekly,
-    buildSeries, volumeProfile, loadThong, evalThong, tick, priceLimits, settleDate, stopHitChance, plan, evidenceLabel, setup, quintileOf,
+    buildSeries, volumeProfile, loadThong, evalThong, tick, priceLimits, stopHitChance, plan, evidenceLabel, setup, quintileOf,
   };
 })();

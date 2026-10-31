@@ -1,4 +1,4 @@
-/* Giao diện: thanh trên, định tuyến và năm màn hình. */
+/* Giao diện: thanh trên, định tuyến và trang Xem mã. Bước 1 và bước 3 nằm ở picks.js. */
 (function () {
   const C = window.Core;
   const { esc, fmt, isNum, toneOf, store, fold, TREND, REGIME } = C;
@@ -12,18 +12,14 @@
     set(k, v) { try { localStorage.setItem('bkt:' + k, JSON.stringify(v)); } catch { /* chế độ riêng tư */ } },
   };
 
-  const thDefaults = () => ({ window: 30, maxRange: 20, minPass: 0, req: [], ex: '', sector: '', adv: 3, q: '' });
+  const DOC = 'https://github.com/vinh-ngoquang/ban-ky-thuat-vn/blob/main/TAI-LIEU-DASHBOARD.md';
 
   const state = {
-    tab: 'today', sym: null, tf: 'd', chart: null, range: 252,
-    th: Object.assign(thDefaults(), save.get('th', {})), thSort: { key: 'count', dir: -1 }, thData: null,
-    pot: Object.assign({ grade: '', sector: '', adv: 3, q: '' }, save.get('pot', {})), potSort: { key: 'pts', dir: -1 },
-    preset: save.get('preset', 'stable'),
-    filters: Object.assign({ ex: '', sector: '', adv: 3, score: 0, trend: '', q: '' }, save.get('filters', {})),
-    sort: { key: 'score', dir: -1 }, sel: 0, list: [],
-    planIn: Object.assign({ capital: 500, riskPct: 1, k: 2, targetR: 2 }, save.get('plan', {})),
-    show: Object.assign({ ma20: true, ma50: true, ma200: true, bb: false, sr: true, plan: true, markers: true, profile: false, ema: false, poc: false }, save.get('show', {})),
-    panes: save.get('panes', ['volume', 'rsi']),
+    tab: 'find', sym: null, tf: 'd', chart: null, thData: null, sel: 0, list: [],
+    pick: Object.assign({ lens: 'best', style: 'defensive', sector: '', q: '', easy: false }, save.get('pick', {})),
+    basket: Object.assign({ syms: [], capital: 1000, risk: 1 }, save.get('basket', {})),
+    show: Object.assign({ ma20: true, ma50: true, ma200: true, bb: false, sr: true, plan: true, markers: false, profile: false, ema: false, poc: false }, save.get('show', {})),
+    panes: save.get('panes', ['volume']),
   };
 
   /* ---- mảnh giao diện dùng chung ---- */
@@ -42,16 +38,6 @@
   const signed = (x, d = 0) => (isNum(x) ? (x > 0 ? '+' : '') + fmt.n(x, d) : '–');
   const regimeTone = (r) => (r === 1 ? 'good' : r === -1 ? 'bad' : 'warn');
 
-  function spark(values, tone = 'var(--fg-2)') {
-    if (!values || values.length < 2) return '<svg class="spark" aria-hidden="true"></svg>';
-    const w = 76, h = 24, n = values.length - 1;
-    const lo = Math.min(...values), hi = Math.max(...values), k = hi > lo ? (h - 6) / (hi - lo) : 0;
-    const p = values.map((v, i) => [i / n * (w - 4) + 1, h - 3 - (v - lo) * k]);
-    const d = p.map(([x, y], i) => (i ? 'L' : 'M') + x.toFixed(1) + ' ' + y.toFixed(1)).join('');
-    const [ex, ey] = p[p.length - 1];
-    return `<svg class="spark" viewBox="0 0 ${w} ${h}" aria-hidden="true"><path d="${d}" fill="none" stroke="${tone}" stroke-width="1.5" stroke-linejoin="round"/><circle cx="${ex}" cy="${ey}" r="2" fill="${tone}"/></svg>`;
-  }
-  const sparkFor = (u) => spark(u.spark, u.r20 >= 0 ? 'var(--up)' : 'var(--down)');
   const scoreBar = (v) => (isNum(v)
     ? `<span class="scorebar"><span class="num">${fmt.n(v)}</span><i><b style="width:${Math.max(2, v)}%"></b></i></span>` : '<span class="muted">–</span>');
 
@@ -153,371 +139,102 @@
 
   const legend = (items) => `<div class="legend">${items.map(([n, c]) => `<span><i style="background:${c}"></i>${esc(n)}</span>`).join('')}</div>`;
 
-  /* ---- màn hình Hôm nay ---- */
-  function takeaway() {
-    const M = store.market, n = M.dates.length - 1;
-    const reg = M.regime[n];
-    const a200 = M.above200[n], adv = M.adv[n], dec = M.dec[n];
-    const headline = reg === -1
-      ? (a200 < 35 ? 'Thị trường đang suy yếu và rất hẹp' : 'Thị trường đang suy yếu')
-      : reg === 1 ? 'Sức mạnh đang lan tỏa trên diện rộng' : 'Thị trường chưa có xu hướng rõ';
-    const y1 = M.comp[n] / M.comp[Math.max(0, n - 250)] - 1;
-    return {
-      headline, reg,
-      body: `Chỉ ${fmt.n(a200)}% mã thanh khoản đang trên MA200. Phiên ${fmt.dayShort(M.dates[n])} có ${adv} mã tăng, ${dec} mã giảm. `
-        + `Một năm qua, cổ phiếu thanh khoản điển hình ${fmt.pct(y1, 1)}.`,
-    };
+  /* ---- bước 2: Xem mã ---- */
+  const INTERNAL = /^(pot_|thong)/;   // quy tắc tổng hợp, không phải tín hiệu riêng trên biểu đồ
+  const CHART_PLAN = { capital: 500, riskPct: 1, k: 2, targetR: 2 };    // cùng quy tắc kiểm chứng, chỉ dùng để vẽ cắt lỗ và mục tiêu
+  const mark = (ok, text) => `<span class="mk ${ok ? 'yes' : 'no'}">${ok ? ICON.check : ICON.x}<span>${esc(text)}</span></span>`;
+
+  const acc = (id, title, body) => `<details class="card acc" id="${id}"><summary>${title}</summary><div class="acc-body">${body}</div></details>`;
+
+  function thongPanel(u) {
+    const T = state.thData, row = T?.rows[u.s];
+    if (!row) return '<p class="empty">Chưa đủ dữ liệu.</p>';
+    const r = C.evalThong(u, row, { maxRange: T.maxRange * 100 }, T), b = r.base;
+    const items = [
+      ['EMA xếp tầng', r.pass[0], r.hasEma ? (r.pass[0] ? 'Giá trên EMA10, các đường xếp đúng thứ tự' : `Mới đạt ${r.tiers} trên 5 tầng`) : 'Chưa đủ lịch sử'],
+      ['RSI trên 50', r.pass[1], `RSI hiện tại ${fmt.n(u.rsi)}`],
+      ['Các đường EMA chưa giãn', r.pass[2], r.hasEma ? `EMA50 cách EMA150 ${fmt.pctAbs(r.s150, 0)}, cách EMA200 ${fmt.pctAbs(r.s200, 0)}` : '–'],
+      ['Nền tích lũy', r.pass[3], b ? `Biên ${fmt.pctAbs(b.range, 0)} trong ${T.window} phiên, khối lượng ${fmt.n(b.vol, 2)} lần trung bình` : '–'],
+      ['POC tăng dần', r.pass[4], b ? `${fmt.px(b.p1)} → ${fmt.px(b.p2)} → ${fmt.px(b.p3)}` : '–'],
+    ];
+    return `<div class="thong-list">${items.map(([t, ok, d]) => `<div>${mark(ok, t)}<span class="muted">${esc(d)}</span></div>`).join('')}</div>
+      <p class="note" style="margin-top:6px">POC là mức giá có khối lượng giao dịch lớn nhất trong một đoạn. Công cụ so sánh 3 đoạn ${T.window} phiên liền nhau.</p>`;
   }
 
-  function kpi(label, val, sub, values, tone = 'var(--fg-2)') {
-    return `<div class="kpi"><span class="lb">${esc(label)}</span><span class="val">${val}</span><span class="sub">${sub}</span>${values ? kpiSpark(values, tone) : ''}</div>`;
+  /* Thanh chuyển mã. Mã ngoài danh sách: nút Sau đưa về mã đầu danh sách. */
+  function navBar(sym) {
+    const i = state.list.indexOf(sym), n = state.list.length;
+    return `<nav class="sv-nav"><button class="link-btn" id="back">‹ Danh sách mã</button>
+      <span class="note">${i >= 0 ? `Mã ${i + 1} trong ${n}` : 'Ngoài danh sách'}</span>
+      <div class="seg"><button id="prev-sym" title="Phím [" ${i <= 0 ? 'disabled' : ''}>‹ Trước</button><button id="next-sym" title="Phím ]" ${i === n - 1 ? 'disabled' : ''}>Sau ›</button></div></nav>`;
   }
 
-  function kpiSpark(values, tone) {
-    const v = values.filter((x) => x != null), w = 120, h = 22;
-    if (v.length < 2) return '';
-    const lo = Math.min(...v), hi = Math.max(...v), k = hi > lo ? (h - 4) / (hi - lo) : 0;
-    const d = v.map((x, i) => (i ? 'L' : 'M') + (i / (v.length - 1) * w).toFixed(1) + ' ' + (h - 2 - (x - lo) * k).toFixed(1)).join('');
-    return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true"><path d="${d}" fill="none" stroke="${tone}" stroke-width="1.5" vector-effect="non-scaling-stroke"/></svg>`;
+  function bindNav() {
+    $('#back').addEventListener('click', () => go('find'));
+    $('#prev-sym').addEventListener('click', () => stepSymbol(-1));
+    $('#next-sym').addEventListener('click', () => stepSymbol(1));
   }
 
-  function renderToday() {
-    const M = store.market, R = store.report, n = M.dates.length - 1;
-    const t = takeaway();
-    const last = (arr, k = 60) => arr.slice(-k);
-    const chg = (arr, k = 5) => arr[n] - arr[n - k];
-    const avgT = M.turnover.slice(-21, -1).reduce((a, b) => a + b, 0) / 20;
-    const tradable = store.universe.filter((u) => u.liquid);
-    const q5 = tradable.filter((u) => C.quintileOf(u.score) === 5);
-    const today = (key) => tradable.filter((u) => u.sigs.includes(key));
-    const fresh = tradable.filter((u) => u.score >= 60 && u.sigs.some((k) => ['leader', 'pullback', 'golden'].includes(k)))
-      .sort((a, b) => b.score - a.score).slice(0, 8);
-    const traps = tradable.filter((u) => u.sigs.includes('breakout') || (u.sigs.includes('squeeze') && u.score < 40))
-      .sort((a, b) => a.score - b.score).slice(0, 8);
-    const broken = tradable.filter((u) => u.sigs.includes('breakdown') || u.sigs.includes('death'))
-      .sort((a, b) => (b.adv || 0) - (a.adv || 0)).slice(0, 8);
-
-    view().innerHTML = `<div class="view">
-      <section class="lede" id="tom-tat">
-        <h1>${esc(t.headline)}</h1>
-        <p>${esc(t.body)}</p>
-      </section>
-      <section class="kpis" aria-label="Sức khỏe thị trường">
-        ${kpi('Trạng thái thị trường', chip(REGIME[t.reg], regimeTone(t.reg)), `${fmt.n(M.nLiquid[n])} mã thanh khoản`, null)}
-        ${kpi('Trên MA50', fmt.n(M.above50[n]) + '%', `${signed(chg(M.above50))} điểm % sau 5 phiên`, last(M.above50))}
-        ${kpi('Trên MA200', fmt.n(M.above200[n]) + '%', `${signed(chg(M.above200))} điểm % sau 5 phiên`, last(M.above200))}
-        ${kpi('Tăng / giảm', `<span class="up">${M.adv[n]}</span> / <span class="down">${M.dec[n]}</span>`, `Phiên ${fmt.dayShort(M.dates[n])}`, last(M.adv.map((a, i) => a - M.dec[i])))}
-        ${kpi('Đỉnh / đáy 52 tuần', `<span class="up">${M.newHi[n]}</span> / <span class="down">${M.newLo[n]}</span>`, `Số mã lập mới trong phiên`, last(M.newHi.map((a, i) => a - M.newLo[i])))}
-        ${kpi('Giá trị giao dịch', fmt.ty(M.turnover[n]), `${fmt.pct(M.turnover[n] / avgT - 1, 0)} so với TB 20 phiên`, last(M.turnover))}
-      </section>
-      <div class="grid-2">
-        <section class="card" id="the-luc">
-          <div class="card-head"><h2>Cổ phiếu điển hình đang ở đâu</h2>
-            <div class="seg" id="mkt-range" role="group" aria-label="Khoảng thời gian">
-              ${[[125, '6 tháng'], [250, '1 năm'], [0, '3 năm']].map(([k, l]) => `<button data-k="${k}" aria-pressed="${state.range === k || (k === 250 && state.range === 252)}">${l}</button>`).join('')}
-            </div></div>
-          ${legend([['Chỉ số điển hình', 'var(--fg)'], ['MA50', 'var(--s-ma50)'], ['MA200', 'var(--s-ma200)']])}
-          <div id="mkt-chart"></div>
-          <p class="note" style="margin:8px 0 2px">Tỷ lệ mã trên MA50 và MA200</p>
-          ${legend([['Trên MA50', 'var(--s-ma50)'], ['Trên MA200', 'var(--s-ma200)']])}
-          <div id="breadth-chart"></div>
-          <p class="note" style="margin-top:6px">Chỉ số điển hình gia quyền theo thanh khoản, tính riêng từ giá từng mã, 100 = ${fmt.day(M.dates[0])}. Nền xanh: Lan tỏa. Nền đỏ: Suy yếu.</p>
-        </section>
-        <section class="card" id="bang-chung">
-          <div class="card-head"><h2>Tín hiệu nào từng có ích?</h2><a class="icon-btn" href="https://github.com/vinh-ngoquang/ban-ky-thuat-vn/blob/main/TAI-LIEU-DASHBOARD.md#8-c%C3%A1ch-ki%E1%BB%83m-ch%E1%BB%A9ng" target="_blank" rel="noopener">Cách kiểm chứng</a></div>
-          <p class="note" style="margin-bottom:8px">Mỗi tín hiệu được mô phỏng thành lệnh thật trong ${fmt.n(R.sessions)} phiên, đã trừ phí. Cột giữa so với mốc vào lệnh ngẫu nhiên (${fmt.r(R.setups.find((s) => s.key === 'random').all.exp)}).</p>
-          <div>${evidenceRows()}</div>
-          <div class="scale-note" style="margin-top:6px"><span>−0,6R</span><span>kỳ vọng mỗi lệnh, vạch mờ là khoảng tin cậy 90%</span><span>+0,6R</span></div>
-          <div class="alerts">
-            <div class="alert">${ICON.warn}<span><b>Điểm Bền</b> là thứ phân loại tốt nhất: nhóm cao nhất thắng ${fmt.pctAbs(R.quintiles[4].win20, 0)} ở T+20, nhóm thấp nhất ${fmt.pctAbs(R.quintiles[0].win20, 0)}.</span></div>
-            <div class="alert">${ICON.warn}<span>Cắt lỗ 2 ATR vẫn bị chạm trong ${fmt.pctAbs(C.stopHitChance(2), 0)} trường hợp sau 20 phiên. Chừa khoảng thở hoặc giảm khối lượng.</span></div>
-          </div>
-        </section>
-      </div>
-      <div class="grid-3">
-        ${miniCard('Bền và có tín hiệu tốt', 'Điểm từ 60, xuất hiện Dẫn dắt, Kéo về hoặc Giao cắt vàng trong 3 phiên gần nhất.', fresh, 'leaderplus')}
-        ${miniCard('Dễ thành bẫy', 'Bứt phá hoặc siết biên độ ở mã kém bền. Lịch sử cho thấy nhóm này hay thất bại.', traps, 'breakout')}
-        ${miniCard('Đang gãy xu hướng', 'Thủng MA50 với khối lượng lớn hoặc giao cắt tử thần trong 3 phiên gần nhất.', broken, 'broken')}
-      </div>
-      <section class="card" id="nganh">
-        <div class="card-head"><h2>Ngành nào bền nhất</h2><span class="note">Chỉ tính mã đủ thanh khoản, xếp theo Điểm Bền trung vị</span></div>
-        <div class="table-wrap" style="max-height:none">${sectorTable(tradable)}</div>
-      </section>
-      <p class="foot">Dữ liệu đến hết phiên ${fmt.day(M.dates[n])}. Đây là công cụ phân tích chung dựa trên quy tắc, không phải tư vấn đầu tư cá nhân. Hiệu quả trong quá khứ không bảo đảm kết quả tương lai. Xem công thức, giả định và giới hạn trong <a href="https://github.com/vinh-ngoquang/ban-ky-thuat-vn/blob/main/TAI-LIEU-DASHBOARD.md" target="_blank" rel="noopener">tài liệu</a>.</p>
-    </div>`;
-    drawMarket();
-    $$('#mkt-range button').forEach((b) => b.addEventListener('click', () => {
-      state.range = +b.dataset.k;
-      $$('#mkt-range button').forEach((x) => x.setAttribute('aria-pressed', x === b));
-      drawMarket();
-    }));
-  }
-
-  function evidenceRows() {
-    const R = store.report;
-    const base = R.setups.find((s) => s.key === 'random').all.exp;
-    const x = (v) => (Math.max(-0.6, Math.min(0.6, v)) + 0.6) / 1.2 * 100;
-    const list = R.setups.filter((s) => s.key !== 'random').sort((a, b) => (b.all.exp ?? -9) - (a.all.exp ?? -9));
-    return list.map((s) => {
-      const count = store.universe.filter((u) => u.liquid && u.sigs.includes(s.key)).length;
-      const a = s.all;
-      return `<button class="ev-row" data-setup="${s.key}" title="${esc(s.rule)}">
-        <span><span class="nm">${esc(s.name)}</span><small>${fmt.r(a.exp)} · ${fmt.n(a.n)} lệnh · hiện ${count} mã</small></span>
-        <span class="ev-bar" aria-hidden="true">
-          <span class="zero" style="left:50%"></span><span class="base" style="left:${x(base)}%;opacity:.5"></span>
-          <span class="ci" style="left:${x(a.lo)}%;width:${x(a.hi) - x(a.lo)}%"></span>
-          <span class="dot" style="left:${x(a.exp)}%"></span></span>
-        <span>${evChip(a, s.late)}</span></button>`;
-    }).join('');
-  }
-
-  function miniRow(u) {
-    const e = (u.sigs || []).map((k) => C.setup(k)?.name).filter(Boolean).join(', ');
-    return `<button class="mini-row" data-sym="${esc(u.s)}"><b>${esc(u.s)}</b>
-      <span class="m">${esc(e || u.short)}</span>${sparkFor(u)}
-      <span class="num ${toneOf(u.chg)}">${fmt.pct(u.chg)}</span></button>`;
-  }
-
-  function miniCard(title, note, rows, preset) {
-    return `<section class="card"><div class="card-head"><h2>${esc(title)}</h2>${rows.length ? `<button class="icon-btn" data-preset="${preset}">Xem hết</button>` : ''}</div>
-      <p class="note" style="margin-bottom:6px">${esc(note)}</p>
-      <div class="mini-list">${rows.length ? rows.map(miniRow).join('') : '<p class="empty">Không có mã nào khớp trong 3 phiên gần nhất.</p>'}</div></section>`;
-  }
-
-  function sectorTable(rows) {
-    const groups = new Map();
-    for (const u of rows) {
-      if (!groups.has(u.sector)) groups.set(u.sector, []);
-      groups.get(u.sector).push(u);
-    }
-    const med = (a) => { const v = a.filter(isNum).sort((p, q) => p - q); return v.length ? v[Math.floor(v.length / 2)] : null; };
-    const list = [...groups.entries()].filter(([, g]) => g.length >= 3).map(([name, g]) => ({
-      name, n: g.length, score: med(g.map((u) => u.score)), r20: med(g.map((u) => u.r20)), r60: med(g.map((u) => u.r60)),
-      up: g.filter((u) => u.trend === 'strong' || u.trend === 'up').length / g.length,
-      top: [...g].sort((a, b) => (b.score ?? 0) - (a.score ?? 0))[0],
-    })).sort((a, b) => b.score - a.score);
-    return `<table><thead><tr><th class="l">Ngành</th><th>Số mã</th><th>Điểm Bền</th><th>Tỷ lệ xu hướng tăng</th><th>20 phiên</th><th>60 phiên</th><th class="l">Mã bền nhất</th></tr></thead><tbody>
-      ${list.map((g) => `<tr class="go" data-sector="${esc(g.name)}"><td class="l">${esc(g.name)}</td><td class="num">${g.n}</td><td>${scoreBar(g.score)}</td><td class="num">${fmt.pctAbs(g.up, 0)}</td>
-        <td class="num ${toneOf(g.r20)}">${fmt.pct(g.r20)}</td><td class="num ${toneOf(g.r60)}">${fmt.pct(g.r60)}</td><td class="l"><b>${esc(g.top.s)}</b> <span class="muted num">${fmt.n(g.top.score)}</span></td></tr>`).join('')}
-      </tbody></table>`;
-  }
-
-  function drawMarket() {
-    const M = store.market;
-    const k = state.range === 252 ? 250 : state.range;
-    const from = k ? Math.max(0, M.dates.length - k) : 0;
-    const cut = (a) => a.slice(from);
-    const dates = cut(M.dates);
-    linePlot($('#mkt-chart'), {
-      dates, height: 220, bands: cut(M.regime), fmtY: (v) => (isNum(v) ? v.toFixed(0) : '–'),
-      series: [{ name: 'MA200', values: cut(M.ma200), color: 'var(--s-ma200)' }, { name: 'MA50', values: cut(M.ma50), color: 'var(--s-ma50)' }, { name: 'Chỉ số điển hình', values: cut(M.comp), color: 'var(--fg)', width: 2 }],
-    });
-    linePlot($('#breadth-chart'), {
-      dates, height: 120, fmtY: (v) => (isNum(v) ? v.toFixed(0) + '%' : '–'), refLines: [{ v: 50 }],
-      series: [{ name: 'Trên MA50', values: cut(M.above50), color: 'var(--s-ma50)' }, { name: 'Trên MA200', values: cut(M.above200), color: 'var(--s-ma200)' }],
-    });
-  }
-
-  /* ---- màn hình Sàng lọc ---- */
-  const hasSig = (u, ...k) => k.some((x) => u.sigs.includes(x));
-  const PRESETS = [
-    { id: 'stable', name: 'Bền nhất', note: 'Điểm từ 80', test: (u) => u.score >= 80, sort: 'score' },
-    { id: 'leaderplus', name: 'Tín hiệu ở mã bền', note: 'Dẫn dắt, Kéo về, Vàng + điểm ≥ 60', test: (u) => u.score >= 60 && hasSig(u, 'leader', 'pullback', 'golden'), sort: 'score' },
-    { id: 'near', name: 'Gần đỉnh và ổn định', note: 'Cách đỉnh dưới 5%, ATR dưới 2,5%', test: (u) => u.dist > -0.05 && u.atrp < 0.025, sort: 'dist' },
-    { id: 'breakout', name: 'Bứt phá và siết biên', note: 'Cảnh báo: hay thất bại', test: (u) => hasSig(u, 'breakout', 'squeeze'), sort: 'score' },
-    { id: 'broken', name: 'Gãy xu hướng', note: 'Thủng MA50, giao cắt tử thần', test: (u) => hasSig(u, 'breakdown', 'death'), sort: 'adv' },
-    { id: 'wild', name: 'Biến động cao', note: 'Nhóm thua thị trường nhiều nhất', test: (u) => C.quintileOf(u.score) === 1, sort: 'atrp' },
-    { id: 'all', name: 'Tất cả', note: 'Chỉ dùng bộ lọc bên dưới', test: () => true, sort: 'score' },
-  ];
-
-  const COLS = [
-    { k: 's', t: 'Mã', cls: 'l', str: true, html: (u) => `<span class="sym">${esc(u.s)}</span><span class="nm">${esc(u.short)}</span>` },
-    { k: 'spark', t: '40 phiên', cls: 'l', nosort: true, html: sparkFor },
-    { k: 'px', t: 'Giá', html: (u) => `<span class="num">${fmt.px(u.px)}</span>` },
-    { k: 'chg', t: '% phiên', html: (u) => `<span class="num ${toneOf(u.chg)}">${fmt.pct(u.chg)}</span>` },
-    { k: 'score', t: 'Điểm Bền', html: (u) => scoreBar(u.score) },
-    { k: 'trend', t: 'Xu hướng', cls: 'l', str: true, html: (u) => trendChip(u.trend) },
-    { k: 'sigs', t: 'Tín hiệu 3 phiên', cls: 'l', str: true, html: (u) => u.sigs.map((k) => { const s = C.setup(k); return s ? chip(s.name, C.evidenceLabel(s.all, s.late).tone) : ''; }).join(' ') || '<span class="muted">–</span>' },
-    { k: 'atrp', t: 'ATR %', html: (u) => `<span class="num">${fmt.pctAbs(u.atrp)}</span>` },
-    { k: 'dist', t: 'Cách đỉnh 52T', html: (u) => `<span class="num">${fmt.pct(u.dist, 0)}</span>` },
-    { k: 'rs', t: 'RS', html: (u) => `<span class="num">${fmt.n(u.rs)}</span>` },
-    { k: 'r20', t: '20 phiên', html: (u) => `<span class="num ${toneOf(u.r20)}">${fmt.pct(u.r20)}</span>` },
-    { k: 'adv', t: 'GTGD TB 20p', html: (u) => `<span class="num">${fmt.ty(u.adv)}</span>` },
-  ];
-
-  function filtered() {
-    const f = state.filters;
-    const preset = PRESETS.find((p) => p.id === state.preset) || PRESETS[0];
-    const q = fold(f.q.trim());
-    const rows = store.universe.filter((u) => u.liquid && (u.adv || 0) >= f.adv
-      && (!f.ex || u.ex === f.ex) && (!f.sector || u.sector === f.sector) && (!f.trend || u.trend === f.trend)
-      && (!f.score || (u.score ?? -1) >= f.score) && (!q || u.key.includes(q)) && preset.test(u));
-    const { key, dir } = state.sort;
-    const col = COLS.find((c) => c.k === key);
-    const val = (u) => (key === 'sigs' ? u.sigs.length : u[key]);
-    rows.sort((a, b) => {
-      const x = val(a), y = val(b);
-      if (x == null || (typeof x === 'number' && !isNum(x))) return 1;
-      if (y == null || (typeof y === 'number' && !isNum(y))) return -1;
-      return (col && col.str && key !== 'sigs' ? String(x).localeCompare(String(y)) : x - y) * dir;
-    });
-    return rows;
-  }
-
-  function renderScreen() {
-    const sectors = [...new Set(store.universe.filter((u) => u.liquid).map((u) => u.sector))].filter(Boolean).sort((a, b) => a.localeCompare(b, 'vi'));
-    const f = state.filters;
-    view().innerHTML = `<div class="view"><section class="lede"><h1>Sàng lọc</h1><p>Chọn một góc nhìn, thu hẹp bằng bộ lọc, rồi mở mã để lập kế hoạch. Phím <span class="num">↑ ↓</span> để chọn dòng, <span class="num">Enter</span> để mở.</p></section>
-      <section class="card" id="sang-loc">
-        <div class="presets" role="group" aria-label="Góc nhìn">${PRESETS.map((p) => `<button class="preset" data-p="${p.id}" aria-pressed="${state.preset === p.id}"><b>${esc(p.name)}</b><span>${esc(p.note)}</span></button>`).join('')}</div>
-        <div class="filters">
-          <label>Sàn <select id="f-ex"><option value="">Tất cả</option>${['HOSE', 'HNX', 'UPCOM'].map((x) => `<option ${f.ex === x ? 'selected' : ''}>${x}</option>`).join('')}</select></label>
-          <label>Ngành <select id="f-sector"><option value="">Tất cả</option>${sectors.map((x) => `<option ${f.sector === x ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select></label>
-          <label>Xu hướng <select id="f-trend"><option value="">Tất cả</option>${Object.entries(TREND).map(([k, v]) => `<option value="${k}" ${f.trend === k ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
-          <label>GTGD từ <input id="f-adv" type="number" min="3" step="1" value="${f.adv}"> tỷ</label>
-          <label>Điểm từ <input id="f-score" type="number" min="0" max="100" step="5" value="${f.score}"></label>
-          <label><input id="f-q" type="search" placeholder="Lọc theo mã, tên" value="${esc(f.q)}"></label>
-          <button class="icon-btn" id="f-reset">Đặt lại</button>
-          <button class="icon-btn" id="f-copy">Sao chép CSV</button>
-          <span class="note" id="f-count" aria-live="polite"></span>
-        </div>
-        <div class="table-wrap" id="screen-table" tabindex="0"></div>
-      </section></div>`;
-    const set = (k, v) => { state.filters[k] = v; save.set('filters', state.filters); state.sel = 0; drawScreenTable(); };
-    $('#f-ex').addEventListener('change', (e) => set('ex', e.target.value));
-    $('#f-sector').addEventListener('change', (e) => set('sector', e.target.value));
-    $('#f-trend').addEventListener('change', (e) => set('trend', e.target.value));
-    $('#f-adv').addEventListener('input', (e) => set('adv', +e.target.value || 0));
-    $('#f-score').addEventListener('input', (e) => set('score', +e.target.value || 0));
-    $('#f-q').addEventListener('input', (e) => set('q', e.target.value));
-    $('#f-reset').addEventListener('click', () => {
-      state.filters = { ex: '', sector: '', adv: 3, score: 0, trend: '', q: '' };
-      save.set('filters', state.filters);
-      renderScreen();
-    });
-    $('#f-copy').addEventListener('click', copyCsv);
-    $$('.preset').forEach((b) => b.addEventListener('click', () => {
-      state.preset = b.dataset.p;
-      save.set('preset', state.preset);
-      const p = PRESETS.find((x) => x.id === state.preset);
-      state.sort = { key: p.sort, dir: p.id === 'wild' ? -1 : -1 };
-      state.sel = 0;
-      $$('.preset').forEach((x) => x.setAttribute('aria-pressed', x === b));
-      drawScreenTable();
-    }));
-    drawScreenTable();
-  }
-
-  function drawScreenTable() {
-    const rows = filtered();
-    state.list = rows.map((u) => u.s);
-    const shown = rows.slice(0, 300);
-    $('#f-count').textContent = `${fmt.n(rows.length)} mã` + (rows.length > 300 ? ', hiện 300 mã đầu' : '');
-    const box = $('#screen-table');
-    if (!rows.length) {
-      box.innerHTML = `<p class="empty">Không có mã nào khớp. Hãy nới ngưỡng giá trị giao dịch, Điểm Bền, hoặc chọn góc nhìn khác.</p>`;
-      return;
-    }
-    box.innerHTML = `<table><thead><tr>${COLS.map((c) => {
-      const sorted = state.sort.key === c.k;
-      const aria = sorted ? ` aria-sort="${state.sort.dir > 0 ? 'ascending' : 'descending'}"` : '';
-      return `<th class="${c.cls || ''}"${aria}>${c.nosort ? esc(c.t) : `<button data-k="${c.k}">${esc(c.t)}</button>`}</th>`;
-    }).join('')}</tr></thead><tbody>${shown.map((u, i) => `<tr class="go ${i === state.sel ? 'sel' : ''}" data-sym="${esc(u.s)}">${COLS.map((c) => `<td class="${c.cls || ''}">${c.html(u)}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
-    $$('th button', box).forEach((b) => b.addEventListener('click', () => {
-      const k = b.dataset.k;
-      state.sort = state.sort.key === k ? { key: k, dir: -state.sort.dir } : { key: k, dir: COLS.find((c) => c.k === k).str && k !== 'sigs' ? 1 : -1 };
-      drawScreenTable();
-    }));
-  }
-
-  function moveSel(step) {
-    const rows = $$('#screen-table tbody tr');
-    if (!rows.length) return;
-    rows[state.sel]?.classList.remove('sel');
-    state.sel = Math.max(0, Math.min(rows.length - 1, state.sel + step));
-    rows[state.sel].classList.add('sel');
-    rows[state.sel].scrollIntoView({ block: 'nearest' });
-  }
-
-  async function copyCsv() {
-    const head = ['Ma', 'Ten', 'San', 'Nganh', 'Gia', 'PctPhien', 'DiemBen', 'XuHuong', 'ATRpct', 'CachDinh', 'RS', 'GTGD_ty'];
-    const lines = filtered().map((u) => [u.s, u.short, u.ex, u.sector, u.px, u.chg, u.score, u.trend, u.atrp, u.dist, u.rs, u.adv].map((x) => `"${String(x ?? '').replace(/"/g, '""')}"`).join(','));
-    const text = [head.join(','), ...lines].join('\n');
-    try {
-      await navigator.clipboard.writeText(text);
-      toast(`Đã sao chép ${lines.length} dòng`);
-    } catch {
-      toast('Trình duyệt chặn sao chép. Hãy thử lại sau khi bấm vào trang.');
-    }
-  }
-
-  /* ---- màn hình Phân tích mã ---- */
   async function renderSymbol() {
+    if (!state.sym) return go('symbol', window.Picks.first());
     const sym = state.sym;
-    if (!sym) {
-      const best = store.universe.filter((u) => u.liquid).sort((a, b) => (b.adv || 0) - (a.adv || 0))[0];
-      return go('symbol', best.s);
-    }
-    view().innerHTML = '<p class="skeleton">Đang tải dữ liệu mã…</p>';
+    window.Picks.fillList();    // mở thẳng link một mã thì danh sách chưa có
+    view().innerHTML = `<div class="view">${navBar(sym)}<p class="skeleton">Đang tải dữ liệu mã…</p></div>`;
+    bindNav();
     let data;
     try {
-      data = await C.loadSymbol(sym);
-      if (state.show.poc) state.thData = await C.loadThong();
+      [data, state.thData] = await Promise.all([C.loadSymbol(sym), C.loadThong()]);
     } catch (e) {
-      view().innerHTML = `<p class="err">${esc(e.message)}. Hãy thử mã khác.</p>`;
+      if (state.sym !== sym || state.tab !== 'symbol') return;
+      view().innerHTML = `<div class="view">${navBar(sym)}<p class="err">Không tải được dữ liệu ${esc(sym)}. Nếu bạn mở trên máy, hãy chạy lại mo-dashboard.bat rồi thử lại.</p></div>`;
+      bindNav();
       return;
     }
     if (state.sym !== sym || state.tab !== 'symbol') return;
     const { u, bars } = data;
-    const last = bars[bars.length - 1];
-    const prev = bars[bars.length - 2] || last;
+    const a = window.Picks.assess(u);
     const lim = C.priceLimits(u.px, u.ex);
-    const inList = state.list.indexOf(sym);
+    const inBasket = state.basket.syms.includes(sym);
+    const passed = a.row ? a.row.checks.filter(Boolean).length : null;
     view().innerHTML = `<div class="view">
-      <section class="sym-head" id="ma">
-        <div><h1>${esc(u.s)}</h1><div class="sym-sub">${esc(u.ex)} · ${esc(u.sector)}</div></div>
-        <div><span class="px num">${fmt.px(u.px)}</span> <span class="num ${toneOf(u.chg)}">${fmt.pct(u.chg, 2)}</span>
-          <div class="sym-sub num">Tham chiếu ${fmt.px(u.px)} · Trần <span style="color:var(--ceil)">${fmt.px(lim.ceil)}</span> · Sàn <span style="color:var(--floor)">${fmt.px(lim.floor)}</span></div></div>
-        <div class="sym-sub" style="flex:1;min-width:180px">${esc(u.name)}</div>
-        ${inList >= 0 ? `<div class="seg"><button id="prev-sym" title="Mã trước, phím [">‹ Trước</button><button id="next-sym" title="Mã sau, phím ]">Sau ›</button></div>` : ''}
-      </section>
-      <p class="verdict" id="ket-luan">${esc(verdictLine(data))}</p>
-      <div class="desk">
-        <div class="desk-main">
-          <section class="card" id="bieu-do">
-            <div class="chart-tools">
-              <div class="toggles" id="tog-layers">
-                ${[['ema', 'EMA 10·20·50·150·200', 'var(--s-e50)'], ['poc', 'POC ba đoạn', 'var(--accent)'], ['ma20', 'MA20', 'var(--s-ma20)'], ['ma50', 'MA50', 'var(--s-ma50)'], ['ma200', 'MA200', 'var(--s-ma200)'], ['bb', 'Bollinger', 'var(--s-ma20)'], ['sr', 'Hỗ trợ, kháng cự', 'var(--muted)'], ['plan', 'Kế hoạch', 'var(--up)'], ['markers', 'Tín hiệu', 'var(--accent)'], ['profile', 'Khối lượng theo giá', 'var(--profile)']]
-    .map(([k, l, c]) => `<button class="tog" data-k="${k}" aria-pressed="${!!state.show[k]}" style="--c:${c}"><i></i>${l}</button>`).join('')}
-              </div>
-              <div class="toggles">
-                <div class="seg" id="tf" role="group" aria-label="Khung thời gian"><button data-t="d" aria-pressed="${state.tf === 'd'}">Ngày</button><button data-t="w" aria-pressed="${state.tf === 'w'}">Tuần</button></div>
-                <div class="seg" id="panes" role="group" aria-label="Khung phụ">${[['volume', 'KL'], ['rsi', 'RSI'], ['macd', 'MACD'], ['rs', 'RS']].map(([k, l]) => `<button data-k="${k}" aria-pressed="${state.panes.includes(k)}">${l}</button>`).join('')}</div>
-              </div>
-            </div>
-            <div class="legend" id="ema-legend" ${state.show.ema ? '' : 'hidden'}>${[['EMA10', '--s-e10'], ['EMA20', '--s-e20'], ['EMA50', '--s-e50'], ['EMA150', '--s-e150'], ['EMA200', '--s-e200']].map(([n, c]) => `<span><i style="background:var(${c})"></i>${n}</span>`).join('')}</div>
-            <div class="readout num" id="readout"></div>
-            <div class="chart-host" id="chart" aria-label="Biểu đồ giá ${esc(u.s)}"></div>
-            <p class="note" style="margin-top:6px">Giá đã điều chỉnh, đơn vị nghìn đồng. Kéo để cuộn, lăn chuột để phóng to, nhấp đúp để về mặc định. Nến tím chạm trần, nến xanh lơ chạm sàn.</p>
-          </section>
-          <section class="card" id="lich-su">
-            <div class="card-head"><h2>Tín hiệu đã xuất hiện trên mã này</h2><span class="note">Kết quả theo cùng quy tắc mô phỏng</span></div>
-            <div class="table-wrap" style="max-height:280px">${eventTable(data)}</div>
-          </section>
-          <section class="card" id="cung-nganh">
-            <div class="card-head"><h2>So với cùng ngành</h2><span class="note">${esc(u.sector)}, mã đủ thanh khoản</span></div>
-            <div class="table-wrap" style="max-height:300px">${peerTable(u)}</div>
-          </section>
-          <details class="card"><summary>Bảng giá 15 phiên gần nhất</summary><div class="table-wrap" style="margin-top:8px">${priceTable(bars)}</div></details>
+      ${navBar(sym)}
+      <section class="card sv-card tone-${a.tone || 'none'}" id="ket-luan">
+        <div class="sv-id">
+          <div><h1>${esc(u.s)}</h1><div class="sym-sub">${esc(u.short || u.name)} · ${esc(u.ex)} · ${esc(u.sector)}</div></div>
+          <div class="sv-price"><span class="px num">${fmt.px(u.px)}</span> <span class="num ${toneOf(u.chg)}">${fmt.pct(u.chg, 2)}</span>
+            <div class="sym-sub num">Trần <span style="color:var(--ceil)">${fmt.px(lim.ceil)}</span> · Sàn <span style="color:var(--floor)">${fmt.px(lim.floor)}</span></div></div>
+          <button class="btn-main" id="add-basket" aria-pressed="${inBasket}">${inBasket ? 'Đã có trong giỏ' : 'Thêm vào giỏ'}</button>
         </div>
-        <aside class="desk-side">
-          ${readPanel(data)}
-          ${planPanel(u)}
-          ${rangePanel(u)}
-          ${levelsPanel(data)}
-        </aside>
+        <div class="sv-verdict"><h2>${esc(a.title)}</h2><p>${esc(a.note)}</p><p class="muted">${esc(verdictLine(data))}</p></div>
+        ${a.checks.length ? `<div class="sv-checks">${a.checks.map((c) => `<div class="sv-check ${c.tone}"><span class="lb">${esc(c.label)}</span><b>${esc(c.text)}</b><span class="d">${esc(c.note)}</span></div>`).join('')}</div>` : ''}
+      </section>
+      <section class="card" id="bieu-do">
+        <div class="chart-tools">
+          <div class="seg" id="tf" role="group" aria-label="Khung thời gian"><button data-t="d" aria-pressed="${state.tf === 'd'}">Ngày</button><button data-t="w" aria-pressed="${state.tf === 'w'}">Tuần</button></div>
+          <details class="chart-more"><summary>Thêm chỉ báo</summary><div class="chart-more-body">
+            <div class="toggles" id="tog-layers">
+              ${[['ma20', 'MA20', 'var(--s-ma20)'], ['ma50', 'MA50', 'var(--s-ma50)'], ['ma200', 'MA200', 'var(--s-ma200)'], ['ema', 'EMA của Thông', 'var(--s-e50)'], ['poc', 'POC', 'var(--accent)'], ['sr', 'Hỗ trợ, kháng cự', 'var(--muted)'], ['plan', 'Kế hoạch', 'var(--up)'], ['markers', 'Tín hiệu', 'var(--accent)'], ['bb', 'Bollinger', 'var(--s-ma20)'], ['profile', 'Khối lượng theo giá', 'var(--profile)']]
+.map(([k, l, c]) => `<button class="tog" data-k="${k}" aria-pressed="${!!state.show[k]}" style="--c:${c}"><i></i>${l}</button>`).join('')}
+            </div>
+            <div class="toggles" id="panes" role="group" aria-label="Khung phụ"><span class="note">Khung dưới:</span>${[['volume', 'Khối lượng'], ['rsi', 'RSI'], ['macd', 'MACD'], ['rs', 'So với thị trường']].map(([k, l]) => `<button class="tog" data-k="${k}" aria-pressed="${state.panes.includes(k)}"><i></i>${l}</button>`).join('')}</div>
+          </div></details>
+        </div>
+        <div class="legend" id="ema-legend" ${state.show.ema ? '' : 'hidden'}>${[['EMA10', '--s-e10'], ['EMA20', '--s-e20'], ['EMA50', '--s-e50'], ['EMA150', '--s-e150'], ['EMA200', '--s-e200']].map(([n, c]) => `<span><i style="background:var(${c})"></i>${n}</span>`).join('')}</div>
+        <div class="readout num" id="readout"></div>
+        <div class="chart-host" id="chart" aria-label="Biểu đồ giá ${esc(u.s)}"></div>
+        <p class="note" style="margin-top:6px">Kéo để cuộn, lăn chuột để phóng to, nhấp đúp để về mặc định. Vùng xanh là mục tiêu, vùng đỏ là mức có thể lỗ, tính từ giá hiện tại với cắt lỗ 2 ATR và mục tiêu gấp 2 lần mức lỗ.</p>
+      </section>
+      <div class="acc-list">
+        ${acc('tieu-chi-thong', `Tiêu chí của Thông${passed != null ? `: đạt ${passed}/5` : ''}`, thongPanel(u))}
+        ${acc('tai-chinh-acc', 'Tài chính', finPanel(u))}
+        ${acc('muc-gia-acc', 'Hỗ trợ và kháng cự', levelsPanel(data))}
+        ${acc('dai-gia-acc', 'Giá có thể đi tới đâu', rangePanel(u) || '<p class="empty">Chưa đủ dữ liệu.</p>')}
+        ${acc('diem-acc', 'Vì sao có điểm này', readPanel(data))}
+        ${acc('tin-hieu-acc', 'Tín hiệu đã xuất hiện', `<div class="table-wrap" style="max-height:280px">${eventTable(data)}</div>`)}
+        ${acc('nganh-acc', `So với cùng ngành: ${esc(u.sector)}`, `<div class="table-wrap" style="max-height:320px">${peerTable(u)}</div>`)}
+        ${acc('gia-acc', 'Bảng giá 15 phiên', `<div class="table-wrap">${priceTable(bars)}</div>`)}
       </div>
-      <p class="foot">Kế hoạch là phép tính theo quy tắc và số bạn nhập, không phải khuyến nghị mua bán. Ngày bán sớm nhất chưa trừ ngày nghỉ lễ.</p>
+      <p class="foot">Kết luận và các mức trên biểu đồ là phép tính theo quy tắc, không phải tư vấn đầu tư hay khuyến nghị mua bán. Hãy kiểm tra báo cáo tài chính và tin tức trước khi quyết định.</p>
     </div>`;
     bindSymbol(data);
   }
@@ -526,7 +243,7 @@
     const R = store.report;
     const q = C.quintileOf(u.score);
     const qs = q ? R.quintiles[q - 1] : null;
-    const recent = [...events].reverse().find((e) => e.gi >= store.market.dates.length - 4);
+    const recent = [...events].reverse().find((e) => e.gi >= store.market.dates.length - 4 && !INTERNAL.test(e.key));
     const s = recent ? C.setup(recent.key) : null;
     const liqTone = u.adv >= 10 ? 'good' : u.adv >= 3 ? 'warn' : 'bad';
     const liqText = u.adv >= 10 ? 'Dễ giao dịch' : u.adv >= 3 ? 'Vừa phải' : 'Rất mỏng';
@@ -565,12 +282,9 @@
     const trendWord = { strong: 'xu hướng tăng mạnh', up: 'xu hướng tăng', side: 'đi ngang', down: 'xu hướng giảm', new: 'chưa đủ lịch sử xu hướng' }[u.trend];
     const quality = q >= 4 ? 'Mã bền' : q === 3 ? 'Mã độ bền trung bình' : 'Mã kém bền';
     parts.push(`${quality}, ${trendWord}`);
-    const recent = [...events].reverse().find((e) => e.gi >= store.market.dates.length - 4);
+    const recent = [...events].reverse().find((e) => e.gi >= store.market.dates.length - 4 && !INTERNAL.test(e.key));
     const sig = recent ? C.setup(recent.key) : null;
-    if (sig) {
-      const lb = C.evidenceLabel(u.score >= 60 ? sig.highScore : sig.all, u.score >= 60 ? null : sig.late);
-      parts.push(`vừa có tín hiệu ${sig.name} (${lb.text.toLowerCase()})`);
-    }
+    if (sig) parts.push(`vừa có tín hiệu ${sig.name}`);
     if (u.dist != null && u.dist > -0.05) parts.push(`cách đỉnh 52 tuần ${fmt.pctAbs(-u.dist)}`);
     else if (u.dist != null && u.dist < -0.35) parts.push(`đã giảm ${fmt.pctAbs(-u.dist, 0)} từ đỉnh`);
     let s = parts.join(', ') + '.';
@@ -596,56 +310,19 @@
     return `${label}: ${fmt.n(hs.n)} lệnh, thắng ${fmt.pctAbs(hs.win, 0)}, kỳ vọng ${fmt.r(hs.exp)}.`;
   }
 
-  function planPanel(u) {
-    const p = state.planIn;
-    return `<section class="card" id="ke-hoach"><div class="card-head"><h2>Kế hoạch và khối lượng</h2></div>
-      <div class="form-grid">
-        <label class="field">Vốn (triệu đồng)<input id="p-capital" type="number" min="1" step="50" value="${p.capital}" inputmode="decimal"></label>
-        <label class="field">Rủi ro mỗi lệnh (%)<input id="p-risk" type="number" min="0.1" max="10" step="0.25" value="${p.riskPct}" inputmode="decimal"></label>
-        <label class="field">Giá vào (nghìn đồng)<input id="p-entry" type="number" min="0" step="0.05" value="${u.px}" inputmode="decimal"></label>
-        <label class="field">Cắt lỗ cách<select id="p-k">${[1.5, 2, 2.5, 3, 4].map((k) => `<option value="${k}" ${p.k === k ? 'selected' : ''}>${fmt.n(k, 1)} ATR</option>`).join('')}</select></label>
-        <label class="field">Chốt lời ở<select id="p-tr">${[1, 1.5, 2, 3].map((k) => `<option value="${k}" ${p.targetR === k ? 'selected' : ''}>${fmt.n(k, 1)}R</option>`).join('')}</select></label>
-      </div><div id="plan-out" aria-live="polite"></div></section>`;
-  }
-
-  function currentPlan(u) {
-    const entry = +($('#p-entry')?.value) || u.px;
-    return C.plan(u, { ...state.planIn, entry });
-  }
-
-  function drawPlan(u) {
-    const box = $('#plan-out');
-    if (!box) return;
-    const p = currentPlan(u);
-    if (!p) {
-      box.innerHTML = '<p class="empty">Giá vào hoặc ATR chưa hợp lệ, hoặc mức cắt lỗ thấp hơn 0. Hãy giảm khoảng cắt lỗ.</p>';
-      return;
-    }
-    const days = C.settleDate(store.market.dates[store.market.dates.length - 1]);
-    const alerts = [];
-    if (p.shares < 100) alerts.push(['bad', `Rủi ro cho phép chưa đủ mua một lô 100 cổ phiếu. Cần tăng vốn, tăng % rủi ro, hoặc thu hẹp cắt lỗ.`]);
-    if (p.cappedByCash) alerts.push(['warn', 'Khối lượng bị giới hạn bởi vốn, rủi ro thực tế thấp hơn mức bạn đặt.']);
-    if (p.advShare > 0.1) alerts.push(['bad', `Lệnh bằng ${fmt.pctAbs(p.advShare, 0)} giá trị giao dịch một phiên, có thể khó khớp và trượt giá.`]);
-    if (u.adv < 3) alerts.push(['bad', 'Thanh khoản rất mỏng, giá cắt lỗ có thể không khớp được.']);
-    if (p.hit >= 0.5) alerts.push(['warn', `Khoảng cắt lỗ này hẹp: lịch sử cho thấy ${fmt.pctAbs(p.hit, 0)} trường hợp bị chạm trong 20 phiên.`]);
-    if (p.stop < p.lim.floor) alerts.push(['warn', `Mức cắt lỗ thấp hơn giá sàn phiên tới (${fmt.px(p.lim.floor)}), cần hơn một phiên mới chạm.`]);
-    const up = (store.decoded.get(u.s)?.levels || []).find((l) => l.kind === 'res' && l.price > p.entry);
-    if (up && up.price < p.target) alerts.push(['warn', `Kháng cự ${fmt.px(up.price)} nằm trước mục tiêu, giá có thể bị chặn ở đó.`]);
-    box.innerHTML = `<div class="plan-out">
-      <div><span class="lb">Cắt lỗ</span><span class="vl num down">${fmt.px(p.stop)}</span> <span class="muted num">${fmt.pct(-p.stopPct)}</span></div>
-      <div><span class="lb">Mục tiêu</span><span class="vl num up">${fmt.px(p.target)}</span> <span class="muted num">${fmt.pct(p.targetPct)}</span></div>
-      <div><span class="lb">Khối lượng</span><span class="vl num">${fmt.n(p.shares)}</span> <span class="muted">cp</span></div>
-      <div><span class="lb">Giá trị lệnh</span><span class="vl num">${fmt.vnd(p.value)}</span> <span class="muted num">${fmt.pctAbs(p.pctCapital, 0)}</span></div>
-      <div><span class="lb">Lỗ nếu chạm cắt lỗ</span><span class="vl num down">−${fmt.vnd(p.loss)}</span></div>
-      <div><span class="lb">Lãi nếu đạt mục tiêu</span><span class="vl num up">+${fmt.vnd(p.gain)}</span></div>
-      <div class="wide"><span class="lb">Chạm cắt lỗ trong 20 phiên, theo lịch sử toàn thị trường</span><span class="vl num">${fmt.pctAbs(p.hit, 0)}</span></div>
-      <div class="wide"><span class="lb">Mua phiên ${fmt.day(days.buy)}, bán được sớm nhất</span><span class="vl num">${fmt.day(days.sell)}</span> <span class="muted">chiều T+2</span></div>
-    </div>
-    <div class="alerts">${alerts.map(([t, m]) => `<div class="alert ${t}">${ICON.warn}<span>${esc(m)}</span></div>`).join('')}</div>`;
-    if (state.chart) {
-      state.chart.layers.plan = { entry: p.entry, stop: p.stop, target: p.target };
-      state.chart.draw();
-    }
+  function finPanel(u) {
+    const all = store.report.picks.fin;
+    const hist = all?.rows[u.s]?.hist;
+    if (!hist?.length) return '<p class="empty">Chưa có số liệu tài chính của mã này.</p>';
+    const bank = hist.some((h) => isNum(h.npl));
+    const off = (h) => isNum(h.eps) && isNum(h.epsCalc) && h.epsCalc !== 0 && Math.abs(h.eps / h.epsCalc - 1) > 0.1;
+    const now = all.rows[u.s].now;
+    const peLine = now ? `<p class="note" style="margin-bottom:6px"><b>P/E hiện tại ${now.eps > 0 ? fmt.n(now.price / now.eps, 1) : 'không tính được vì lỗ'}</b> = giá ${fmt.n(now.price)} đồng ÷ EPS ${fmt.n(now.eps)} đồng. EPS = LN 4 quý đến ${esc(now.q)} ${fmt.n(now.ttm, 1)} tỷ ÷ ${fmt.n(now.shares, 1)} triệu cổ phiếu${now.split > 1 ? `, đã nhân ${fmt.n(now.split, 2)} lần vì chia cổ phiếu sau cuối quý` : ''}.</p>` : '';
+    return `${peLine}<div class="table-wrap"><table><thead><tr><th class="l">Quý</th><th title="Doanh thu thuần. Ngân hàng là tổng thu nhập hoạt động">Doanh thu (tỷ)</th><th title="Lợi nhuận sau thuế của cổ đông công ty mẹ trong quý">LN công ty mẹ (tỷ)</th><th title="Cộng lợi nhuận công ty mẹ 4 quý gần nhất">LN 4 quý (tỷ)</th><th>Vốn chủ (tỷ)</th><th title="Số lớn hơn giữa vốn điều lệ chia 10.000 đồng và vốn chủ chia giá trị sổ sách mỗi cổ phiếu">Cổ phiếu (triệu)</th><th>ROE</th><th>LN tăng</th><th>DT tăng</th><th title="LN 4 quý chia số cổ phiếu">EPS tính lại</th><th title="Số do nguồn cung cấp, chỉ để đối chiếu">EPS nguồn</th>${bank ? '<th>Nợ xấu</th>' : ''}</tr></thead><tbody>
+      ${[...hist].reverse().map((h) => `<tr><td class="l num">${esc(h.q)}</td><td class="num">${fmt.n(h.sales, 1)}</td><td class="num ${toneOf(h.profit)}">${fmt.n(h.profit, 1)}</td><td class="num">${fmt.n(h.ttm, 1)}</td><td class="num">${fmt.n(h.equity, 1)}</td><td class="num">${fmt.n(h.shares, 1)}</td><td class="num">${fmt.pctAbs(h.roe, 2)}</td><td class="num ${toneOf(h.npat)}">${fmt.pct(h.npat)}</td><td class="num ${toneOf(h.rev)}">${fmt.pct(h.rev)}</td><td class="num">${fmt.n(h.epsCalc)}</td><td class="num ${off(h) ? 'down' : ''}">${fmt.n(h.eps)}</td>${bank ? `<td class="num">${fmt.pctAbs(h.npl, 2)}</td>` : ''}</tr>`).join('')}
+      </tbody></table></div>
+      <p class="note" style="margin-top:6px">Cách tự kiểm: LN tăng và DT tăng so với cùng quý năm trước. ROE doanh nghiệp thường bằng lợi nhuận trong quý chia vốn chủ cuối kỳ. Ngân hàng, chứng khoán, bảo hiểm dùng cách khác, gần với LN 4 quý chia vốn chủ bình quân, nên không tính lại khớp hoàn toàn và không so ROE giữa các nhóm. EPS tính lại bằng LN công ty mẹ 4 quý chia số cổ phiếu. EPS nguồn chỉ để đối chiếu, số đỏ là lệch trên 10% so với EPS tính lại: với doanh nghiệp thường, nguồn thường chậm một quý và gồm cả cổ đông thiểu số. Số cổ phiếu là ước lượng từ vốn điều lệ, giá trị sổ sách và lần chia cổ phiếu sau kỳ, chưa trừ hết cổ phiếu quỹ.</p>
+      <p class="note">Bảng hiện báo cáo mới nhất. P/E hiện tại chỉ dùng báo cáo đã qua ${fmt.n(all.lag)} ngày kể từ cuối quý, vì nguồn không có ngày công bố. Số tài chính chưa tính vào Điểm và Kết luận.</p>`;
   }
 
   function rangePanel(u) {
@@ -676,7 +353,7 @@
   }
 
   function eventTable({ events }) {
-    const rows = [...events].reverse().slice(0, 40);
+    const rows = [...events].reverse().filter((e) => !INTERNAL.test(e.key)).slice(0, 40);
     if (!rows.length) return '<p class="empty">Chưa có tín hiệu nào khi mã này đủ thanh khoản.</p>';
     const why = { stop: 'Chạm cắt lỗ', target: 'Đạt mục tiêu', time: 'Hết 20 phiên', open: 'Đang diễn ra' };
     return `<table><thead><tr><th class="l">Ngày</th><th class="l">Tín hiệu</th><th class="l">Kết thúc</th><th>Kết quả</th></tr></thead><tbody>
@@ -699,8 +376,8 @@
   /* Ba đoạn POC vẽ đúng vị trí trên trục thời gian. Khung tuần gộp nến nên không vẽ. */
   function pocSegments(u, bars) {
     if (state.tf !== 'd' || !state.thData) return null;
-    const w = state.th.window;
-    const m = state.thData.rows[u.s]?.w[String(w)];
+    const w = state.thData.window;
+    const m = state.thData.rows[u.s]?.w;
     if (!m) return null;
     const n = store.market.dates.length;
     const at = (gi) => bars.findIndex((b) => b.gi >= gi);
@@ -716,16 +393,17 @@
     state.bars = bars;
     const byGi = new Map(bars.map((b, i) => [b.gi, i]));
     let markers;
-    if (state.tf === 'd') markers = data.events.map((e) => ({ i: e.t, side: C.setup(e.key)?.side === 'risk' ? 'risk' : 'long', key: e.key }));
+    const shown = data.events.filter((e) => !INTERNAL.test(e.key));
+    if (state.tf === 'd') markers = shown.map((e) => ({ i: e.t, side: C.setup(e.key)?.side === 'risk' ? 'risk' : 'long', key: e.key }));
     else {
-      markers = data.events.map((e) => {
+      markers = shown.map((e) => {
         const i = bars.findIndex((b) => b.gi >= e.gi);
         return { i, side: C.setup(e.key)?.side === 'risk' ? 'risk' : 'long', key: e.key };
       }).filter((m) => m.i >= 0);
     }
     state.chart.show = state.show;
     state.chart.panes = state.panes;
-    const p = currentPlan(u);
+    const p = C.plan(u, { ...CHART_PLAN, entry: u.px });
     state.chart.setData(bars, series, {
       sr: data.levels, markers, profile: C.volumeProfile(bars, state.tf === 'w' ? 40 : 120),
       plan: p ? { entry: p.entry, stop: p.stop, target: p.target } : null, poc: pocSegments(u, bars),
@@ -753,7 +431,6 @@
     if (state.chart) state.chart.destroy();
     state.chart = new window.StockChart($('#chart'), { onHover: updateReadout });
     setChartData(data);
-    drawPlan(u);
     $$('#tog-layers .tog').forEach((b) => b.addEventListener('click', async () => {
       const k = b.dataset.k;
       state.show[k] = !state.show[k];
@@ -780,293 +457,21 @@
       state.chart.panes = state.panes;
       state.chart.draw();
     }));
-    const onPlan = () => {
-      state.planIn = {
-        capital: Math.max(0, +$('#p-capital').value || 0), riskPct: Math.max(0, +$('#p-risk').value || 0),
-        k: +$('#p-k').value, targetR: +$('#p-tr').value,
-      };
-      save.set('plan', state.planIn);
-      drawPlan(u);
-    };
-    ['#p-capital', '#p-risk', '#p-entry'].forEach((q) => $(q).addEventListener('input', onPlan));
-    ['#p-k', '#p-tr'].forEach((q) => $(q).addEventListener('change', onPlan));
-    $('#prev-sym')?.addEventListener('click', () => stepSymbol(-1));
-    $('#next-sym')?.addEventListener('click', () => stepSymbol(1));
+    bindNav();
+    $('#add-basket').addEventListener('click', (e) => {
+      if (!window.Picks.toggle(u.s)) return;
+      const on = state.basket.syms.includes(u.s);
+      e.currentTarget.setAttribute('aria-pressed', on);
+      e.currentTarget.textContent = on ? 'Đã có trong giỏ' : 'Thêm vào giỏ';
+      toast(on ? `Đã thêm ${u.s} vào giỏ` : `Đã bỏ ${u.s} khỏi giỏ`);
+    });
   }
 
   function stepSymbol(d) {
     const i = state.list.indexOf(state.sym);
-    if (i < 0) return;
+    if (i < 0 && d < 0) return;
     const next = state.list[Math.max(0, Math.min(state.list.length - 1, i + d))];
-    if (next !== state.sym) go('symbol', next);
-  }
-
-  /* ---- màn hình Phân tích của Thông ---- */
-  const TH_RULES = [
-    { t: 'EMA xếp tầng', d: 'Giá > EMA10 > EMA20 > EMA50 > EMA150 > EMA200' },
-    { t: 'RSI trên 50', d: 'RSI 14 phiên lớn hơn 50' },
-    { t: 'EMA chưa giãn', d: 'EMA50 cách EMA150 và EMA200 dưới 20%' },
-    { t: 'Nền tích lũy', d: 'Đi ngang biên hẹp, biên co lại, khối lượng cạn dần, thấp hơn khi về gần hỗ trợ' },
-    { t: 'POC tăng dần', d: 'Giá có khối lượng lớn nhất tăng qua 3 đoạn liên tiếp' },
-  ];
-
-  const mark = (ok, text) => `<span class="mk ${ok ? 'yes' : 'no'}">${ok ? ICON.check : ICON.x}<span class="num">${esc(text)}</span></span>`;
-
-  function thongRows() {
-    const o = state.th;
-    const q = fold(o.q.trim());
-    const rows = [];
-    for (const u of store.universe) {
-      if (!u.liquid || (u.adv || 0) < o.adv || (o.ex && u.ex !== o.ex) || (o.sector && u.sector !== o.sector) || (q && !u.key.includes(q))) continue;
-      const r = C.evalThong(u, state.thData.rows[u.s], { window: o.window, maxRange: o.maxRange }, state.thData);
-      if (r.count < o.minPass || o.req.some((i) => !r.pass[i])) continue;
-      rows.push({ u, r });
-    }
-    const { key, dir } = state.thSort;
-    const val = ({ u, r }) => ({ count: r.count, s: u.s, px: u.px, chg: u.chg, rsi: u.rsi, spread: r.s150, range: r.base?.range, score: u.score, adv: u.adv }[key]);
-    rows.sort((a, b) => {
-      const x = val(a), y = val(b);
-      const bad = (v) => v == null || (typeof v === 'number' && !isNum(v));
-      if (bad(x)) return bad(y) ? 0 : 1;
-      if (bad(y)) return -1;
-      const c = typeof x === 'string' ? x.localeCompare(y) : x - y;
-      return (c * dir) || (b.u.adv || 0) - (a.u.adv || 0);
-    });
-    return rows;
-  }
-
-  async function renderThong() {
-    view().innerHTML = '<p class="skeleton">Đang tính 5 tiêu chí cho toàn bộ mã…</p>';
-    try {
-      state.thData = await C.loadThong();
-    } catch (e) {
-      view().innerHTML = `<p class="err">${esc(e.message)}. Hãy tải lại trang.</p>`;
-      return;
-    }
-    if (state.tab !== 'thong') return;
-    const o = state.th, R = store.report;
-    const sectors = [...new Set(store.universe.filter((u) => u.liquid).map((u) => u.sector))].filter(Boolean).sort((a, b) => a.localeCompare(b, 'vi'));
-    const row5 = R.setups.find((s) => s.key === 'thong'), row4 = R.setups.find((s) => s.key === 'thong4');
-    const rand = R.setups.find((s) => s.key === 'random');
-    const alt = R.thongAlt;
-    const evRow = (name, a, b) => `<tr><td class="l">${esc(name)}</td><td class="num">${fmt.n(a.n)}</td><td class="num">${fmt.pctAbs(a.win, 0)}</td><td class="num ${toneOf(a.exp)}">${fmt.r(a.exp)}</td><td class="num ${toneOf(a.ret)}">${fmt.pct(a.ret)}</td>
-      <td class="num">${fmt.n(b.n)}</td><td class="num">${fmt.pctAbs(b.win, 0)}</td><td class="num ${toneOf(b.exp)}">${fmt.r(b.exp)}</td><td class="num ${toneOf(b.ret)}">${fmt.pct(b.ret)}</td></tr>`;
-    view().innerHTML = `<div class="view">
-      <section class="lede" id="thong-tom-tat"><h1 id="th-title">–</h1><p id="th-sub"></p></section>
-      <section class="card" id="thong-bo-loc">
-        <div class="th-rules" id="th-rules" role="group" aria-label="Bấm để bắt buộc tiêu chí">
-          ${TH_RULES.map((r, i) => `<button class="th-rule" data-i="${i}" aria-pressed="${o.req.includes(i)}"><span class="t">${i + 1}. ${esc(r.t)}</span><span class="c num" id="th-c${i}">–</span><span class="d">${esc(r.d)}</span></button>`).join('')}
-        </div>
-        <div class="filters">
-          <label>Độ dài mỗi đoạn <select id="th-window">${state.thData.windows.map((w) => `<option value="${w}" ${o.window === w ? 'selected' : ''}>${w} phiên</option>`).join('')}</select></label>
-          <label>Biên nền tối đa <input id="th-range" type="number" min="5" max="40" step="1" value="${o.maxRange}"> %</label>
-          <label>Đạt tối thiểu <select id="th-min">${[0, 1, 2, 3, 4, 5].map((n) => `<option value="${n}" ${o.minPass === n ? 'selected' : ''}>${n} tiêu chí</option>`).join('')}</select></label>
-          <label>Sàn <select id="th-ex"><option value="">Tất cả</option>${['HOSE', 'HNX', 'UPCOM'].map((x) => `<option ${o.ex === x ? 'selected' : ''}>${x}</option>`).join('')}</select></label>
-          <label>Ngành <select id="th-sector"><option value="">Tất cả</option>${sectors.map((x) => `<option ${o.sector === x ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select></label>
-          <label>GTGD từ <input id="th-adv" type="number" min="3" step="1" value="${o.adv}"> tỷ</label>
-          <label><input id="th-q" type="search" placeholder="Lọc theo mã, tên" value="${esc(o.q)}"></label>
-          <button class="icon-btn" id="th-reset">Đặt lại</button>
-          <span class="note" id="th-count" aria-live="polite"></span>
-        </div>
-        <div class="table-wrap" id="th-table" tabindex="0"></div>
-        <p class="note" style="margin-top:8px">Bấm thẻ tiêu chí để bắt buộc phải đạt. Bấm một dòng để mở biểu đồ với 5 đường EMA và 3 đoạn POC. Mỗi đoạn là một khoảng cố định liền nhau tính ngược từ phiên cuối.</p>
-      </section>
-      <section class="card" id="thong-bang-chung">
-        <div class="card-head"><h2>Bộ lọc này từng hiệu quả ra sao</h2><span>${evChip(row5.all, row5.late)}</span></div>
-        <div class="table-wrap ev-table" style="max-height:none"><table><thead>
-          <tr><th class="l"></th><th colspan="4">Giữ ngắn: ${fmt.n(R.stopAtr)} ATR, ${fmt.n(R.targetR)}R, ${R.hold} phiên</th><th colspan="4">Giữ dài: ${alt.stop} ATR, ${alt.target}R, ${alt.hold} phiên</th></tr>
-          <tr><th class="l">Mẫu</th><th>Lệnh</th><th>Thắng</th><th>Kỳ vọng</th><th>Lãi TB</th><th>Lệnh</th><th>Thắng</th><th>Kỳ vọng</th><th>Lãi TB</th></tr></thead><tbody>
-          ${evRow('Đủ 5 tiêu chí', row5.all, alt.thong)}${evRow('4 tiêu chí đầu', row4.all, alt.thong4)}${evRow('Vào lệnh ngẫu nhiên', rand.all, alt.random)}
-        </tbody></table></div>
-        <p class="note" style="margin-top:8px">Mô phỏng với mã đủ thanh khoản, đoạn ${state.thData.default} phiên, biên nền ${fmt.n(state.thData.maxRange * 100)}%, đã trừ phí. Vượt ngẫu nhiên ở mức ${fmt.r(row5.all.lift)} (khoảng 90%: ${fmt.n(row5.all.liftLo, 2)} … ${fmt.n(row5.all.liftHi, 2)}), tức chưa tách được khỏi may rủi. Đây là cách diễn giải theo quy tắc của phương pháp Wyckoff, không thay được việc đọc biểu đồ bằng mắt.</p>
-      </section>
-    </div>`;
-    const set = (k, v) => { state.th[k] = v; save.set('th', state.th); drawThong(); };
-    $('#th-window').addEventListener('change', (e) => set('window', +e.target.value));
-    $('#th-range').addEventListener('input', (e) => set('maxRange', +e.target.value || 0));
-    $('#th-min').addEventListener('change', (e) => set('minPass', +e.target.value));
-    $('#th-ex').addEventListener('change', (e) => set('ex', e.target.value));
-    $('#th-sector').addEventListener('change', (e) => set('sector', e.target.value));
-    $('#th-adv').addEventListener('input', (e) => set('adv', +e.target.value || 0));
-    $('#th-q').addEventListener('input', (e) => set('q', e.target.value));
-    $('#th-reset').addEventListener('click', () => { state.th = thDefaults(); save.set('th', state.th); renderThong(); });
-    $$('.th-rule').forEach((b) => b.addEventListener('click', () => {
-      const i = +b.dataset.i;
-      state.th.req = state.th.req.includes(i) ? state.th.req.filter((x) => x !== i) : [...state.th.req, i];
-      b.setAttribute('aria-pressed', state.th.req.includes(i));
-      save.set('th', state.th);
-      drawThong();
-    }));
-    drawThong();
-  }
-
-  function drawThong() {
-    const o = state.th;
-    const opt = { window: o.window, maxRange: o.maxRange };
-    // đếm trên mọi mã đủ thanh khoản, không phụ thuộc bộ lọc hiển thị
-    const counts = [0, 0, 0, 0, 0];
-    let five = 0, four = 0, scored = 0;
-    for (const u of store.universe) {
-      if (!u.liquid) continue;
-      scored++;
-      const r = C.evalThong(u, state.thData.rows[u.s], opt, state.thData);
-      r.pass.forEach((p, i) => { if (p) counts[i]++; });
-      if (r.count === 5) five++;
-      if (r.count === 4) four++;
-    }
-    counts.forEach((c, i) => { $('#th-c' + i).textContent = fmt.n(c) + ' mã'; });
-    $('#th-title').textContent = five ? `${five} mã đạt đủ 5 tiêu chí` : 'Chưa có mã nào đạt đủ 5 tiêu chí';
-    $('#th-sub').textContent = `${fmt.n(four)} mã đạt 4 tiêu chí, ${fmt.n(scored)} mã được chấm. Đã loại ${fmt.n(store.universe.length - scored)} mã có GTGD trung bình 20 phiên dưới ${fmt.n(store.report.minAdv)} tỷ.`;
-    const rows = thongRows();
-    state.list = rows.map((x) => x.u.s);
-    $('#th-count').textContent = `Hiện ${fmt.n(rows.length)} mã`;
-    const box = $('#th-table');
-    if (!rows.length) {
-      box.innerHTML = '<p class="empty">Không có mã nào khớp. Hãy bỏ bớt tiêu chí bắt buộc, giảm số tiêu chí tối thiểu, hoặc nới biên nền.</p>';
-      return;
-    }
-    const heads = [['s', 'Mã', 'l'], ['px', 'Giá'], ['chg', '% phiên'], ['count', 'Đạt', 'l'], [null, '1. EMA', 'l'], ['rsi', '2. RSI', 'l'], ['spread', '3. Cách EMA150, 200', 'l'], ['range', '4. Biên nền, KL', 'l'], [null, '5. POC ba đoạn', 'l'], ['score', 'Điểm Bền'], ['adv', 'GTGD TB 20p']];
-    const sortKey = state.thSort.key;
-    box.innerHTML = `<table><thead><tr>${heads.map(([k, t, c]) => {
-      const aria = k === sortKey ? ` aria-sort="${state.thSort.dir > 0 ? 'ascending' : 'descending'}"` : '';
-      return `<th class="${c || ''}"${aria}>${k ? `<button data-k="${k}">${esc(t)}</button>` : esc(t)}</th>`;
-    }).join('')}</tr></thead><tbody>${rows.map(({ u, r }) => {
-      const b = r.base;
-      const ema = !r.hasEma ? mark(false, 'Chưa đủ lịch sử')
-        : mark(r.pass[0], r.pass[0] ? (r.cross != null ? `Đạt, cắt lên ${r.cross ? r.cross + 'p trước' : 'hôm nay'}` : 'Đạt') : `${r.tiers}/5 tầng`);
-      const base = b && isNum(b.range) ? mark(r.pass[3], `Biên ${fmt.pctAbs(b.range, 1)}, KL ${fmt.n(b.vol, 2)} lần`) : mark(false, '–');
-      const poc = b && isNum(b.p1) && isNum(b.p2) && isNum(b.p3) ? mark(r.pass[4], `${fmt.px(b.p1)} → ${fmt.px(b.p2)} → ${fmt.px(b.p3)}`) : mark(false, '–');
-      const spread = r.hasEma ? mark(r.pass[2], `${fmt.pctAbs(r.s150, 0)}, ${fmt.pctAbs(r.s200, 0)}`) : mark(false, '–');
-      return `<tr class="go" data-sym="${esc(u.s)}" data-thong="1"><td class="l"><span class="sym">${esc(u.s)}</span><span class="nm">${esc(u.short)}</span></td>
-        <td class="num">${fmt.px(u.px)}</td><td class="num ${toneOf(u.chg)}">${fmt.pct(u.chg)}</td>
-        <td class="l"><span class="pips ${r.count === 5 ? 'all' : ''}" aria-hidden="true">${[0, 1, 2, 3, 4].map((i) => `<i class="${r.pass[i] ? 'on' : ''}"></i>`).join('')}</span><span class="num">${r.count}/5</span></td>
-        <td class="l">${ema}</td><td class="l">${mark(r.pass[1], fmt.n(u.rsi))}</td><td class="l">${spread}</td><td class="l">${base}</td><td class="l">${poc}</td>
-        <td>${scoreBar(u.score)}</td><td class="num">${fmt.ty(u.adv)}</td></tr>`;
-    }).join('')}</tbody></table>`;
-    $$('th button', box).forEach((btn) => btn.addEventListener('click', () => {
-      const k = btn.dataset.k;
-      state.thSort = state.thSort.key === k ? { key: k, dir: -state.thSort.dir } : { key: k, dir: k === 's' || k === 'range' || k === 'spread' ? 1 : -1 };
-      drawThong();
-    }));
-  }
-
-  /* ---- màn hình Mã tiềm năng ---- */
-  const potDefaults = () => ({ grade: '', sector: '', adv: 3, q: '' });
-  const GRADE_TONE = { A: 'good', B: 'warn', C: '' };
-  const GRADE_NAME = { A: 'Hạng A', B: 'Hạng B', C: 'Theo dõi' };
-
-  function potRows() {
-    const o = state.pot;
-    const q = fold(o.q.trim());
-    const rows = store.report.potential.rows.map((p) => ({ p, u: store.bySym.get(p.s) })).filter(({ p, u }) => u
-      && (!o.grade || p.grade === o.grade) && (!o.sector || u.sector === o.sector) && (u.adv || 0) >= o.adv && (!q || u.key.includes(q)));
-    const { key, dir } = state.potSort;
-    const room = ({ p, u }) => (isNum(p.res) ? p.res / u.px - 1 : null);
-    const val = (x) => ({ pts: x.p.pts, s: x.u.s, chg: x.u.chg, score: x.u.score, thong: x.p.checks.filter(Boolean).length, ext: x.u.ext, room: room(x), stop: x.p.stop, adv: x.u.adv }[key]);
-    return rows.sort((a, b) => {
-      const x = val(a), y = val(b);
-      if (x == null) return y == null ? 0 : 1;
-      if (y == null) return -1;
-      return (typeof x === 'string' ? x.localeCompare(y) : x - y) * dir;
-    });
-  }
-
-  function renderPotential() {
-    const R = store.report, P = R.potential, o = state.pot;
-    const A = C.setup('pot_a'), B = C.setup('pot_b'), rand = C.setup('random');
-    const n = store.market.dates.length - 1;
-    const reg = { 1: 'risk_on', 0: 'neutral', '-1': 'risk_off' }[store.market.regime[n]];
-    const here = A.regime[reg];
-    const countA = P.rows.filter((x) => x.grade === 'A').length, countB = P.rows.filter((x) => x.grade === 'B').length;
-    const sectors = [...new Set(P.rows.map((x) => store.bySym.get(x.s)?.sector))].filter(Boolean).sort((a, b) => a.localeCompare(b, 'vi'));
-    const row = (name, a, b) => `<tr><td class="l">${esc(name)}</td><td class="num">${fmt.n(a.n)}</td><td class="num">${fmt.pctAbs(a.win, 0)}</td><td class="num ${toneOf(a.exp)}">${fmt.r(a.exp)}</td><td class="num ${toneOf(a.ret)}">${fmt.pct(a.ret)}</td>
-      <td class="num">${fmt.n(b.n)}</td><td class="num">${fmt.pctAbs(b.win, 0)}</td><td class="num ${toneOf(b.exp)}">${fmt.r(b.exp)}</td><td class="num ${toneOf(b.ret)}">${fmt.pct(b.ret)}</td></tr>`;
-    const F = P.portfolio;
-    view().innerHTML = `<div class="view">
-      <section class="lede" id="tiem-nang-tom-tat">
-        <h1>${countA ? `${countA} mã hạng A, ${countB} mã hạng B` : `Chưa có mã hạng A, ${countB} mã hạng B`}</h1>
-        <p>${countA ? 'Hạng A là nhóm có kết quả lịch sử tốt nhất của công cụ.' : 'Hạng A không xuất hiện mỗi ngày. Khi chưa có, hạng B và Theo dõi là danh sách để chuẩn bị, chưa phải tín hiệu mạnh.'} ${fmt.n(P.rows.length)} mã đang qua cổng bắt buộc.</p>
-      </section>
-      <section class="pot-rules" aria-label="Cách chấm">
-        <div class="card"><h2>1. Cổng bắt buộc</h2><p class="note">Thanh khoản từ ${fmt.n(R.minAdv)} tỷ/phiên, Điểm Bền từ ${P.minScore}, xu hướng Tăng hoặc Tăng mạnh, giá cách MA20 không quá ${P.maxExt} ATR.</p></div>
-        <div class="card"><h2>2. Điểm kết hợp</h2><p class="note">50% Điểm Bền, cộng ${P.thongPts} điểm cho mỗi tiêu chí Thông đạt, cộng thưởng tín hiệu trong 3 phiên: Dẫn dắt +${P.bonus.leader}, Kéo về hoặc Giao cắt vàng +${P.bonus.pullback}.</p></div>
-        <div class="card"><h2>3. Xếp hạng</h2><p class="note">Hạng A từ ${P.gradeA} điểm, hạng B từ ${P.gradeB} điểm, còn lại là Theo dõi.</p></div>
-      </section>
-      <section class="card" id="tiem-nang-bang">
-        <div class="filters">
-          <label>Hạng <select id="pot-grade"><option value="">Tất cả</option>${['A', 'B', 'C'].map((g) => `<option value="${g}" ${o.grade === g ? 'selected' : ''}>${GRADE_NAME[g]}</option>`).join('')}</select></label>
-          <label>Ngành <select id="pot-sector"><option value="">Tất cả</option>${sectors.map((x) => `<option ${o.sector === x ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select></label>
-          <label>GTGD từ <input id="pot-adv" type="number" min="3" step="1" value="${o.adv}"> tỷ</label>
-          <label><input id="pot-q" type="search" placeholder="Lọc theo mã, tên" value="${esc(o.q)}"></label>
-          <button class="icon-btn" id="pot-reset">Đặt lại</button>
-          <span class="note" id="pot-count" aria-live="polite"></span>
-        </div>
-        <div class="table-wrap" id="pot-table" tabindex="0"></div>
-        <p class="note" style="margin-top:8px">Dấu kiểm ở cột Tới kháng cự nghĩa là kháng cự gần nhất xa hơn mục tiêu 2R. Bấm một dòng để mở biểu đồ với EMA và POC.</p>
-      </section>
-      <div class="grid-eq">
-        <section class="card" id="tiem-nang-bang-chung">
-          <div class="card-head"><h2>Hạng này từng hiệu quả ra sao</h2><span>${evChip(A.all, A.late)}</span></div>
-          <div class="table-wrap ev-table" style="max-height:none"><table><thead>
-            <tr><th class="l"></th><th colspan="4">Giữ ngắn: ${fmt.n(R.stopAtr)} ATR, ${fmt.n(R.targetR)}R, ${R.hold} phiên</th><th colspan="4">Giữ dài: 3 ATR, 3R, 60 phiên</th></tr>
-            <tr><th class="l">Mẫu</th><th>Lệnh</th><th>Thắng</th><th>Kỳ vọng</th><th>Lãi TB</th><th>Lệnh</th><th>Thắng</th><th>Kỳ vọng</th><th>Lãi TB</th></tr></thead><tbody>
-            ${row('Hạng A', A.all, P.long.a)}${row('Hạng A và B', B.all, P.long.b)}${row('Ngẫu nhiên', rand.all, P.long.random)}
-          </tbody></table></div>
-          <div class="alerts">
-            <div class="alert">${ICON.warn}<span>Hạng A vượt ngẫu nhiên ${fmt.r(A.all.lift)} (khoảng 90%: ${fmt.n(A.all.liftLo, 2)} … ${fmt.n(A.all.liftHi, 2)}). Giai đoạn trước ${fmt.r(A.early.exp)}, 250 phiên cuối ${fmt.r(A.late.exp)}.</span></div>
-            <div class="alert">${ICON.warn}<span>Trong trạng thái ${esc(REGIME[store.market.regime[n]])} hiện tại: ${fmt.n(here.n)} lệnh, kỳ vọng ${fmt.r(here.exp)}. Riêng thị trường Trung tính là ${fmt.r(A.regime.neutral.exp)}.</span></div>
-            <div class="alert">${ICON.warn}<span>Thắng ${fmt.pctAbs(A.all.win, 0)} nghĩa là khoảng một nửa số lệnh vẫn thua. Quy tắc được ghép sau khi đã biết từng phần có ích nên kết quả có thể lạc quan.</span></div>
-          </div>
-        </section>
-        <section class="card" id="tiem-nang-danh-muc"><div class="card-head"><h2>Thử nắm giữ 10 mã điểm cao nhất</h2><span class="note">Đổi danh mục mỗi 20 phiên</span></div>
-          ${legend([['Danh mục, đã trừ phí', 'var(--fg)'], ['Mọi mã thanh khoản', 'var(--s-ma200)']])}
-          <div id="pot-nav"></div>
-          <p class="note" style="margin-top:6px">${fmt.pct(F.ret)} so với ${fmt.pct(F.baseRet)} của toàn thị trường, sụt giảm tối đa ${fmt.pct(F.dd, 0)} so với ${fmt.pct(F.baseDd, 0)}, qua ${F.periods} kỳ. Danh mục đơn giản giữ 20% mã Điểm Bền cao nhất đạt ${fmt.pct(R.portfolio.ret)} với sụt giảm ${fmt.pct(R.portfolio.dd, 0)}, nên ở cấp danh mục, phần kết hợp chưa cho thấy vượt trội.</p>
-        </section>
-      </div>
-      <p class="foot">Danh sách theo quy tắc từ giá và khối lượng, chưa xét báo cáo tài chính, tin tức hay sự kiện doanh nghiệp. Đây không phải khuyến nghị mua bán.</p>
-    </div>`;
-    const set = (k, v) => { state.pot[k] = v; save.set('pot', state.pot); drawPotential(); };
-    $('#pot-grade').addEventListener('change', (e) => set('grade', e.target.value));
-    $('#pot-sector').addEventListener('change', (e) => set('sector', e.target.value));
-    $('#pot-adv').addEventListener('input', (e) => set('adv', +e.target.value || 0));
-    $('#pot-q').addEventListener('input', (e) => set('q', e.target.value));
-    $('#pot-reset').addEventListener('click', () => { state.pot = potDefaults(); save.set('pot', state.pot); renderPotential(); });
-    drawPotential();
-    linePlot($('#pot-nav'), {
-      dates: F.dates, height: 200, fmtY: (v) => (isNum(v) ? (v > 0 ? '+' : '') + (v * 100).toFixed(0) + '%' : '–'), refLines: [{ v: 0 }],
-      series: [{ name: 'Mọi mã thanh khoản', values: F.base.map((v) => v - 1), color: 'var(--s-ma200)' }, { name: 'Danh mục 10 mã', values: F.port.map((v) => v - 1), color: 'var(--fg)', width: 2 }],
-    });
-  }
-
-  function drawPotential() {
-    const rows = potRows();
-    state.list = rows.map((x) => x.u.s);
-    $('#pot-count').textContent = `Hiện ${rows.length} mã`;
-    const box = $('#pot-table');
-    if (!rows.length) {
-      box.innerHTML = '<p class="empty">Không có mã nào khớp. Hãy giảm ngưỡng giá trị giao dịch hoặc chọn hạng khác.</p>';
-      return;
-    }
-    const heads = [['pts', 'Điểm', ''], [null, 'Hạng', 'l'], ['s', 'Mã', 'l'], [null, 'Giá', ''], ['chg', '% phiên', ''], ['score', 'Điểm Bền', ''], ['thong', 'Thông', 'l'], [null, 'Tín hiệu', 'l'], [null, 'Xu hướng', 'l'], ['ext', 'Cách MA20', ''], ['room', 'Tới kháng cự', 'l'], ['stop', 'Cắt lỗ 2 ATR', ''], ['adv', 'GTGD TB 20p', '']];
-    box.innerHTML = `<table><thead><tr>${heads.map(([k, t, c]) => {
-      const aria = k === state.potSort.key ? ` aria-sort="${state.potSort.dir > 0 ? 'ascending' : 'descending'}"` : '';
-      return `<th class="${c}"${aria}>${k ? `<button data-k="${k}">${esc(t)}</button>` : esc(t)}</th>`;
-    }).join('')}</tr></thead><tbody>${rows.map(({ p, u }) => {
-      const passed = p.checks.filter(Boolean).length;
-      const sig = p.signals.map((k) => chip(C.setup(k).name, k === 'leader' ? 'good' : '')).join(' ') || '<span class="muted">–</span>';
-      const room = isNum(p.res) ? p.res / u.px - 1 : null;
-      return `<tr class="go" data-sym="${esc(u.s)}" data-thong="1"><td class="num"><b>${fmt.n(p.pts)}</b></td><td class="l">${chip(GRADE_NAME[p.grade], GRADE_TONE[p.grade])}</td>
-        <td class="l"><span class="sym">${esc(u.s)}</span><span class="nm">${esc(u.short)}</span></td><td class="num">${fmt.px(u.px)}</td><td class="num ${toneOf(u.chg)}">${fmt.pct(u.chg)}</td><td>${scoreBar(u.score)}</td>
-        <td class="l"><span class="pips ${passed === 5 ? 'all' : ''}" aria-hidden="true">${p.checks.map((x) => `<i class="${x ? 'on' : ''}"></i>`).join('')}</span><span class="num">${passed}/5</span></td>
-        <td class="l">${sig}</td><td class="l">${trendChip(u.trend)}</td><td class="num">${fmt.n(u.ext, 1)} ATR</td>
-        <td class="l">${room == null ? '<span class="muted">Chưa rõ</span>' : mark(room >= 2 * p.stop, fmt.pct(room))}</td><td class="num">${fmt.pct(-p.stop)}</td><td class="num">${fmt.ty(u.adv)}</td></tr>`;
-    }).join('')}</tbody></table>`;
-    $$('th button', box).forEach((b) => b.addEventListener('click', () => {
-      const k = b.dataset.k;
-      state.potSort = state.potSort.key === k ? { key: k, dir: -state.potSort.dir } : { key: k, dir: k === 's' || k === 'ext' || k === 'stop' ? 1 : -1 };
-      drawPotential();
-    }));
+    if (next && next !== state.sym) go('symbol', next);
   }
 
   /* ---- tìm kiếm ---- */
@@ -1111,7 +516,7 @@
   }
 
   /* ---- định tuyến ---- */
-  const ROUTES = { today: 'hom-nay', screen: 'sang-loc', thong: 'phan-tich-thong', potential: 'tiem-nang' };
+  const ROUTES = { find: 'tim-ma', basket: 'gio' };
 
   function go(tab, sym) {
     state.tab = tab;
@@ -1121,7 +526,7 @@
     try { history.replaceState(null, '', '#' + token); } catch { /* khung nhúng có thể chặn */ }
     $$('.tab').forEach((b) => b.setAttribute('aria-selected', b.dataset.tab === tab));
     window.scrollTo(0, 0);
-    ({ today: renderToday, screen: renderScreen, symbol: renderSymbol, thong: renderThong, potential: renderPotential }[tab])();
+    ({ find: window.Picks.renderFind, symbol: renderSymbol, basket: window.Picks.renderBasket }[tab])();
   }
 
   function fromHash() {
@@ -1131,7 +536,12 @@
       if (store.bySym.has(s)) return ['symbol', s];
     }
     const tab = Object.keys(ROUTES).find((k) => ROUTES[k] === h);
-    return [tab || 'today', null];
+    return [tab || 'find', null];
+  }
+
+  function badge() {
+    const n = state.basket.syms.length;
+    $$('#basket-count').forEach((el) => { el.textContent = n; el.hidden = !n; });
   }
 
   function bindGlobal() {
@@ -1147,47 +557,13 @@
     });
     document.addEventListener('click', (e) => {
       const a = e.target.closest('[data-sym]');
-      if (a && !e.target.closest('input,select')) {
-        if (a.dataset.thong) {
-          Object.assign(state.show, { ema: true, poc: true, ma20: false, ma50: false, ma200: false });
-          save.set('show', state.show);
-        }
-        go('symbol', a.dataset.sym);
-        return;
-      }
-      const p = e.target.closest('[data-preset]');
-      if (p) { state.preset = p.dataset.preset; save.set('preset', state.preset); go('screen'); return; }
-      const st = e.target.closest('[data-setup]');
-      if (st) {
-        const k = st.dataset.setup;
-        if (k === 'thong' || k === 'thong4') { go('thong'); return; }
-        if (k === 'pot_a' || k === 'pot_b') { go('potential'); return; }
-        const map = { leader: 'leaderplus', pullback: 'leaderplus', golden: 'leaderplus', breakout: 'breakout', squeeze: 'breakout', breakdown: 'broken', death: 'broken', oversold: 'all' };
-        state.preset = map[k] || 'all';
-        save.set('preset', state.preset);
-        go('screen');
-        return;
-      }
-      const sec = e.target.closest('[data-sector]');
-      if (sec) {
-        state.filters.sector = sec.dataset.sector;
-        state.preset = 'all';
-        save.set('filters', state.filters);
-        go('screen');
-      }
+      if (a && !e.target.closest('input,select')) go('symbol', a.dataset.sym);
     });
     document.addEventListener('keydown', (e) => {
       const typing = /INPUT|SELECT|TEXTAREA/.test(e.target.tagName);
       if (e.key === '/' && !typing) { e.preventDefault(); $('#search').focus(); return; }
       if (typing) return;
-      if (state.tab === 'screen') {
-        if (e.key === 'ArrowDown') { e.preventDefault(); moveSel(1); }
-        else if (e.key === 'ArrowUp') { e.preventDefault(); moveSel(-1); }
-        else if (e.key === 'Enter') {
-          const r = $$('#screen-table tbody tr')[state.sel];
-          if (r) go('symbol', r.dataset.sym);
-        }
-      }
+      if (state.tab === 'find') window.Picks.onKey(e);
       if (state.tab === 'symbol') {
         if (e.key === '[') stepSymbol(-1);
         if (e.key === ']') stepSymbol(1);
@@ -1209,10 +585,15 @@
     const cuts = [0.2, 0.4, 0.6, 0.8].map((p) => scores[Math.floor(scores.length * p)]);
     C.quintileOf = (s) => (isNum(s) ? 1 + cuts.filter((c) => s >= c).length : null);
     const R = store.report;
-    // cài đặt cũ trên trình duyệt có thể còn ngưỡng 0
-    for (const o of [state.filters, state.th, state.pot]) o.adv = Math.max(o.adv || 0, R.minAdv);
     $('#asof').textContent = fmt.day(R.asOf);
     bindSearch();
+    window.Picks.init({ state, save, go, chip, toast, legend, linePlot, ICON, DOC, badge });
+    badge();
+    const help = $('#help');
+    const setHelp = (open) => { help.hidden = !open; $('#help-btn').setAttribute('aria-expanded', open); };
+    setHelp(!save.get('seenHelp', false));
+    $('#help-btn').addEventListener('click', () => setHelp(help.hidden));
+    $('#help-close').addEventListener('click', () => { save.set('seenHelp', true); setHelp(false); });
     const [tab, sym] = fromHash();
     go(tab, sym);
     window.addEventListener('hashchange', () => {

@@ -1,6 +1,6 @@
 # Bàn Kỹ Thuật VN
 
-Dashboard phân tích kỹ thuật cổ phiếu Việt Nam: sức khỏe thị trường, sàng lọc theo Điểm Bền, kế hoạch lệnh, kiểm chứng lịch sử cho từng tín hiệu và tab Phân tích của Thông.
+Dashboard phân tích kỹ thuật cổ phiếu Việt Nam theo 3 bước: tìm mã, xem từng mã và dựng giỏ, kèm kiểm chứng lịch sử.
 
 Trang được GitHub Actions dựng lại lúc 18:00 giờ Việt Nam, từ thứ Hai đến thứ Sáu, dùng dữ liệu `eod.stock.ohlcv` của FinLens.
 
