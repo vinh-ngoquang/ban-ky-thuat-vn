@@ -34,6 +34,6 @@ Khi di chuyển thư mục này, hãy di chuyển cả thư mục `cache`, nếu
 Ngưỡng và tham số nằm ở đầu `engine.py`: `MIN_ADV`, `COST`, `STOP_ATR`, `TARGET_R`, `MAX_HOLD`, `SETUPS`.
 Sau khi đổi, chạy `export.py` rồi `build_page.py`. Mọi số kiểm chứng trên trang sẽ tính lại theo tham số mới.
 
-Tiêu chí của Thông lấy ngưỡng từ `THONG_*` trong `engine.py`. Độ dài đoạn và biên nền cố định bằng `THONG_WINDOW`, `THONG_MAX_RANGE`. Số kiểm chứng trên tab luôn dùng giá trị mặc định trong `engine.py`.
+Tiêu chí của Thông lấy ngưỡng từ `THONG_*` trong `engine.py`: đỉnh ngắn hạn, độ lệch RSI, vùng chạm EMA, khoảng cách tới kháng cự và số phiên giảm so khối lượng.
 
 Không có khóa API trong tệp nào ở đây. Khóa chỉ được đọc từ biến môi trường khi chạy.

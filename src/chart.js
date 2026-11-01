@@ -38,7 +38,7 @@
       this.ctx = this.canvas.getContext('2d');
       this.bars = [];
       this.series = {};
-      this.layers = { sr: [], plan: null, markers: [], profile: null, poc: null };
+      this.layers = { sr: [], plan: null, markers: [], profile: null };
       this.show = { ma20: true, ma50: true, ma200: true, bb: false, sr: true, plan: true, markers: true, profile: true };
       this.panes = ['volume', 'rsi'];
       this.log = false;
@@ -57,7 +57,7 @@
     setData(bars, series, layers) {
       this.bars = bars;
       this.series = series || {};
-      this.layers = Object.assign({ sr: [], plan: null, markers: [], profile: null, poc: null }, layers || {});
+      this.layers = Object.assign({ sr: [], plan: null, markers: [], profile: null }, layers || {});
       this.resetView();
     }
 
@@ -346,14 +346,6 @@
       if (show.ema && s.e200) {
         for (const [k, tok] of [['e200', '--s-e200'], ['e150', '--s-e150'], ['e50', '--s-e50'], ['e20', '--s-e20'], ['e10', '--s-e10']]) {
           this.line(s[k], a, b, y, css(tok), k === 'e10' ? 1.25 : 1.5);
-        }
-      }
-      if (show.poc && layers.poc) {
-        for (const seg of layers.poc) {
-          if (seg.b < a || seg.a > b || seg.price < y.lo || seg.price > y.hi) continue;
-          const py = Math.round(y(seg.price));
-          ctx.fillStyle = colors.accent;
-          ctx.fillRect(this.x(seg.a), py - 1, Math.max(4, this.x(seg.b) - this.x(seg.a)), 3);
         }
       }
 

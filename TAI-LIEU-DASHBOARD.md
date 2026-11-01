@@ -29,12 +29,12 @@ Tài liệu này mô tả toàn bộ dashboard: dữ liệu, công thức, chỉ
 ## 1. Kết luận chính
 
 - **Tín hiệu kỹ thuật kinh điển gần như không có lợi thế** trong 3 năm dữ liệu sau khi trừ phí. Trong các tín hiệu đơn lẻ, chỉ "Dẫn dắt gần đỉnh" đạt nhãn "Có bằng chứng", và mức này vẫn mỏng.
-- **Kết hợp nhiều phương pháp cho kết quả tốt nhất:** Mã tiềm năng hạng A đạt +0,14R, vượt ngẫu nhiên +0,29R, nhưng vẫn thua khoảng một nửa số lệnh và được ghép sau khi đã biết từng phần có ích.
+- **Kết hợp nhiều phương pháp cho kết quả tốt nhất:** Mã tiềm năng hạng A đạt +0,28R, vượt ngẫu nhiên +0,43R, nhưng vẫn thua khoảng một nửa số lệnh, chỉ có 136 lệnh và được ghép sau khi đã biết từng phần có ích.
 - **Yếu tố ổn định nhất là biến động:** mã biến động cao thua thị trường rõ rệt ở cả hai giai đoạn kiểm tra. Điểm Bền được xây trên phát hiện này.
-- **Chưa thắng rõ VNINDEX:** cùng giai đoạn, nắm giữ VNINDEX đạt +38,6% (chưa tính cổ tức). Danh mục 10 mã theo phong cách Phòng thủ đạt +39,9%, Cân bằng +27,4%, nhưng đây là số tốt nhất sau khi thử 4 phong cách.
+- **Chưa thắng rõ VNINDEX:** cùng giai đoạn, nắm giữ VNINDEX đạt +38,6% (chưa tính cổ tức). Danh mục 10 mã theo phong cách Phòng thủ đạt +35,9%, Cân bằng +23,7%, và Phòng thủ là số tốt nhất sau khi thử 4 phong cách.
 - **Rủi ro dự báo được tốt hơn lợi nhuận:** dải giá theo ATR và xác suất chạm cắt lỗ giữ được độ chính xác trên giai đoạn kiểm tra độc lập.
 - **Thị trường đang hẹp:** một năm qua VNINDEX +3,3% trong khi cổ phiếu thanh khoản điển hình giảm khoảng 17%.
-- **Bộ lọc của Thông** chưa tách được khỏi vào lệnh ngẫu nhiên khi mua ngay lúc mẫu xuất hiện. Hiện phù hợp để tạo danh sách theo dõi hơn là tín hiệu mua.
+- **Điểm mua của Thông** chưa tách được khỏi vào lệnh ngẫu nhiên: −0,14R so với −0,14R. Bên trong Điểm kết hợp, tiêu chí này có ích hơn khi đứng riêng.
 
 ## 2. Dữ liệu
 
@@ -286,16 +286,16 @@ Quy tắc giữ ngắn, mốc ngẫu nhiên: **−0,14R**, thắng 36%, 13.585 l
 
 | Tín hiệu | Lệnh | Thắng | Kỳ vọng | Khoảng 90% | Vượt ngẫu nhiên | Trước | 250p cuối | Điểm ≥ 60 | Đánh giá |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---|
-| Mã tiềm năng hạng A | 296 | 47% | +0,14R | −0,07 … +0,35 | +0,29R | +0,23R | +0,01R | +0,14R | Có bằng chứng |
+| Mã tiềm năng hạng A | 136 | 49% | +0,28R | +0,09 … +0,46 | +0,43R | +0,32R | +0,22R | +0,28R | Có bằng chứng |
 | Dẫn dắt gần đỉnh | 614 | 42% | +0,07R | −0,08 … +0,22 | +0,21R | +0,11R | 0,00R | +0,21R | Có bằng chứng |
-| Mã tiềm năng hạng A và B | 1.406 | 41% | 0,00R | −0,15 … +0,14 | +0,14R | +0,05R | −0,10R | 0,00R | Đỡ hơn ngẫu nhiên |
+| Mã tiềm năng hạng A và B | 869 | 43% | +0,05R | −0,10 … +0,20 | +0,18R | +0,06R | +0,01R | +0,05R | Đỡ hơn ngẫu nhiên |
 | Giao cắt vàng | 446 | 41% | +0,01R | −0,18 … +0,18 | +0,15R | +0,14R | −0,32R | +0,12R | Đỡ hơn ngẫu nhiên |
 | Bật từ quá bán | 1.494 | 45% | 0,00R | −0,14 … +0,14 | +0,07R | +0,08R | −0,13R | −0,12R | Không hơn ngẫu nhiên |
 | Giao cắt tử thần | 483 | 45% | −0,01R | −0,15 … +0,14 | +0,13R | +0,06R | −0,08R | +0,08R | Không hơn ngẫu nhiên |
 | Siết biên độ | 1.469 | 38% | −0,07R | −0,28 … +0,16 | +0,07R | 0,00R | −0,21R | −0,09R | Không hơn ngẫu nhiên |
-| Mẫu Thông, 4 tiêu chí | 465 | 39% | −0,02R | −0,30 … +0,22 | +0,12R | +0,03R | −0,14R | +0,01R | Không hơn ngẫu nhiên |
+| Xu hướng và RSI của Thông | 2.113 | 37% | −0,06R | −0,19 … +0,07 | +0,08R | 0,00R | −0,20R | 0,00R | Không hơn ngẫu nhiên |
 | Kéo về xu hướng | 1.937 | 38% | −0,10R | −0,24 … +0,05 | +0,04R | −0,05R | −0,17R | +0,01R | Không hơn ngẫu nhiên |
-| Mẫu Thông, đủ 5 tiêu chí | 214 | 43% | +0,03R | −0,26 … +0,28 | +0,19R | +0,09R | −0,11R | +0,02R | Không hơn ngẫu nhiên |
+| Điểm mua của Thông | 511 | 33% | −0,14R | −0,29 … +0,02 | 0,00R | −0,10R | −0,24R | −0,07R | Không hơn ngẫu nhiên |
 | Gãy xu hướng | 1.325 | 36% | −0,13R | −0,28 … +0,03 | −0,02R | −0,15R | −0,10R | −0,12R | Không hơn ngẫu nhiên |
 | Bứt phá nền | 1.246 | 28% | −0,30R | −0,48 … −0,11 | −0,10R | −0,27R | −0,37R | −0,25R | Thua lỗ rõ |
 
@@ -381,52 +381,49 @@ Giá trần làm tròn xuống, giá sàn làm tròn lên theo bước giá. Ng�
 
 ## 11. Phân tích của Thông
 
-Mọi mã đủ thanh khoản được chấm theo 5 tiêu chí. Kết quả nằm ở nhóm Đang tích lũy tại bước 1 và mục Tiêu chí của Thông tại bước 2. Điểm đạt là số tiêu chí đúng trên 5.
+Mọi mã đủ thanh khoản được chấm theo 3 tiêu chí. Kết quả nằm ở nhóm Điểm mua của Thông tại bước 1 và mục Tiêu chí của Thông tại bước 2. Biểu đồ có dấu tín hiệu Điểm mua của Thông khi bật lớp Tín hiệu.
 
 | # | Tiêu chí | Quy tắc mã hóa | Số mã đạt |
 |---:|---|---|---:|
-| 1 | EMA xếp tầng | Giá > EMA10 > EMA20 > EMA50 > EMA150 > EMA200 | 11 |
-| 2 | RSI | RSI 14 > 50 | 49 |
-| 3 | EMA chưa giãn | `|EMA50/EMA150 − 1| < 20%` và `|EMA50/EMA200 − 1| < 20%` | 184 |
-| 4 | Nền tích lũy | Bốn điều kiện bên dưới | 32 |
-| 5 | POC tăng dần | POC1 < POC2 < POC3 | 34 |
+| 1 | EMA xếp tầng | Giá > EMA10, EMA10 ≥ EMA20, EMA20 > EMA50 > EMA150 > EMA200 | 11 |
+| 2 | RSI gần đỉnh trước | RSI 14 lệch không quá 5 điểm so với RSI ở đỉnh ngắn hạn trước | 25 |
+| 3 | Điểm mua | Đạt tiêu chí 1 và 2, cộng thêm 3 điều kiện bên dưới | 0 |
 
-Tiêu chí 1 hiển thị thêm "cắt lên" nếu EMA10 vừa cắt EMA20 trong 10 phiên gần nhất.
+Rule gốc ghi EMA10 "nằm trên hoặc cắt lên" EMA20. Ở phiên đang xét, cả hai trường hợp đều cho EMA10 ≥ EMA20, nên công cụ dùng một điều kiện và hiển thị thêm số phiên từ lần cắt lên gần nhất trong 10 phiên.
 
-### Tiêu chí 4: nền tích lũy
+### Tiêu chí 2: đỉnh ngắn hạn
 
-Xét 40 phiên gần nhất, khoảng 2 tháng. Độ dài này cố định trên toàn dashboard. Phải đạt đủ:
+- Đỉnh ngắn hạn là phiên có giá cao nhất trong 5 phiên mỗi bên, xét trong 60 phiên gần nhất.
+- Đỉnh chỉ được dùng sau khi đủ 5 phiên xác nhận, nên không nhìn trước tương lai.
+- Lấy đỉnh gần nhất, kể cả khi giá hiện tại đã vượt qua đỉnh đó.
 
-1. **Biên hẹp:** `đỉnh nền / đáy nền − 1 ≤ 20%`.
-2. **Biên co lại:** biên 10 phiên cuối không quá 60% biên cả nền.
-3. **Khối lượng cạn:** khối lượng TB 10 phiên thấp hơn TB của cả nền.
-4. **Yếu ở hỗ trợ:** TB khối lượng các phiên đóng cửa ở 1/3 dưới của nền thấp hơn các phiên ở 1/3 trên. Điều kiện được bỏ qua nếu một trong hai nhóm có dưới 3 phiên.
+### Tiêu chí 3: điểm mua
 
-### Tiêu chí 5: POC tăng dần
+Phải đạt đủ:
 
-- Chia dữ liệu thành 3 đoạn cố định liền nhau, mỗi đoạn 40 phiên, tính ngược từ phiên cuối, tổng cộng 120 phiên.
-- Mỗi đoạn chia thành 24 mức giá từ đáy đến đỉnh đoạn. Khối lượng từng phiên được chia đều trên dải cao–thấp của phiên đó.
-- POC là giá giữa của mức có khối lượng lớn nhất.
+1. **Bật từ EMA:** giá thấp nhất cách EMA10 hoặc EMA20 không quá 1% trong 3 phiên gần nhất, và phiên này đóng cửa tăng.
+2. **Tiệm cận kháng cự:** kháng cự gần nhất phía trên cách giá đóng cửa không quá 1,5 ATR. Kháng cự là mức trên biểu đồ, tính từ các đỉnh và đáy cục bộ 250 phiên. Nếu giá đã vượt mọi kháng cự thì không đạt.
+3. **Khối lượng:** khối lượng phiên này lớn hơn phiên lớn nhất trong 5 phiên giảm gần nhất.
 
-Giá dùng ở đây là giá điều chỉnh, khối lượng là số cổ phiếu thật.
+Rule gốc không ghi số cho "đỉnh ngắn hạn", "gần bằng", "bật lên" và "tiệm cận". Các ngưỡng 5 phiên, 5 điểm, 1%, 3 phiên và 1,5 ATR được đặt trước khi xem kết quả, nằm ở `THONG_*` trong `engine.py`. Giá dùng ở đây là giá điều chỉnh, khối lượng là số cổ phiếu thật.
 
 ### Kết quả hiện tại và kiểm chứng
 
-Ngày 30/10/2026 với mặc định, trong 203 mã đủ thanh khoản: **1 mã đạt đủ** là NTP, và 6 mã đạt 4 tiêu chí (ABB, BAF, FRT, HDB, HHP, MSB).
-
-Kiểm chứng dùng đoạn 40 phiên, biên nền 20%, mã thanh khoản:
+Ngày 30/10/2026, trong 203 mã đủ thanh khoản, không mã nào có điểm mua.
 
 | Mẫu | Giữ ngắn (2 ATR, 2R, 20 phiên) | Giữ dài (3 ATR, 3R, 60 phiên) |
 |---|---|---|
-| Đủ 5 tiêu chí | 214 lệnh, thắng 43%, +0,03R, lãi TB +0,1% | 205 lệnh, thắng 33%, −0,02R, lãi TB −0,1% |
-| 4 tiêu chí đầu | 465 lệnh, thắng 39%, −0,02R, lãi TB −0,1% | 451 lệnh, thắng 31%, −0,06R, lãi TB −0,5% |
+| Điểm mua của Thông | 511 lệnh, thắng 33%, −0,14R, lãi TB −1,1% | 494 lệnh, thắng 29%, −0,20R, lãi TB −2,1% |
+| Xu hướng và RSI | 2.113 lệnh, thắng 37%, −0,06R, lãi TB −0,5% | 2.069 lệnh, thắng 31%, −0,06R, lãi TB −0,9% |
 | Ngẫu nhiên | 13.585 lệnh, thắng 36%, −0,14R, lãi TB −0,9% | 13.155 lệnh, thắng 31%, −0,11R, lãi TB −1,2% |
 
-Bài kiểm chứng mua ngay khi mẫu xuất hiện. Phương pháp Wyckoff thường chờ giá vượt khỏi nền kèm khối lượng, cách vào lệnh đó chưa được kiểm chứng. Đây là diễn giải bằng quy tắc, không thay được việc đọc biểu đồ.
+Điểm mua không hơn vào lệnh ngẫu nhiên, và đổi ngưỡng cũng không cải thiện: RSI lệch 3 điểm −0,16R (359 lệnh), lệch 8 điểm −0,17R (718 lệnh), kháng cự 1 ATR −0,16R (430 lệnh), 2,5 ATR −0,12R (607 lệnh).
+
+Điểm mua yêu cầu giá cách kháng cự không quá 1,5 ATR, trong khi mức cắt lỗ là 2 ATR. Vì vậy, mọi điểm mua đều có khoảng trống tới kháng cự nhỏ hơn mức có thể lỗ, và điều kiện Điểm vào ở Kết luận sẽ không đạt. Hai cách nhìn này trái nhau: Thông mua khi sắp vượt kháng cự, còn Điểm vào coi kháng cự là chỗ giá có thể quay đầu.
 
 ## 12. Mã tiềm năng
 
-Quy tắc kết hợp Điểm Bền, tín hiệu đã kiểm chứng và 5 tiêu chí của Thông, dùng để xếp hạng Ưu tiên và Cân nhắc. Quy tắc được đặt trước khi xem kết quả và không chỉnh theo số kiểm chứng.
+Quy tắc kết hợp Điểm Bền, tín hiệu đã kiểm chứng và 3 tiêu chí của Thông, dùng để xếp hạng Ưu tiên và Cân nhắc. Quy tắc được đặt trước khi xem kết quả và không chỉnh theo số kiểm chứng.
 
 ### Cổng bắt buộc
 
@@ -440,11 +437,11 @@ Mã phải đạt đủ:
 ### Điểm kết hợp
 
 ```text
-Điểm kết hợp = 0,5 × Điểm Bền + 6 × số tiêu chí Thông đạt + thưởng tín hiệu
+Điểm kết hợp = 0,5 × Điểm Bền + 10 × số tiêu chí Thông đạt + thưởng tín hiệu
 Thưởng       = 20 nếu có Dẫn dắt gần đỉnh, 10 nếu có Kéo về hoặc Giao cắt vàng, 0 nếu không có
 ```
 
-Tín hiệu còn hiệu lực trong 3 phiên, nếu có nhiều tín hiệu thì lấy mức cao nhất. Tiêu chí Thông dùng đoạn 40 phiên, biên nền 20%, không phụ thuộc phần chỉnh trên tab Thông. Điểm tối đa là 100.
+Tín hiệu còn hiệu lực trong 3 phiên, nếu có nhiều tín hiệu thì lấy mức cao nhất. Điểm tối đa là 100, phần của Thông vẫn tối đa 30 điểm như khi còn 5 tiêu chí. Ngưỡng hạng A, B không đổi theo kết quả kiểm chứng.
 
 | Hạng | Điểm kết hợp |
 |---|---:|
@@ -456,24 +453,24 @@ Cột Tới kháng cự có dấu kiểm khi kháng cự gần nhất xa hơn m�
 
 ### Kết quả hiện tại
 
-Ngày 30/10/2026: **1 mã hạng A** là NTP, 6 mã hạng B là ABB, BAF, VTZ, MSB, HDB, OCB, và 16 mã Theo dõi.
+Ngày 30/10/2026: **không có mã hạng A**, 1 mã hạng B là MSB, và 18 mã Theo dõi. Rule mới khó đạt hơn, vì tiêu chí 2 và 3 ít xuất hiện hơn RSI trên 50 và EMA chưa giãn của bản cũ, nên số mã ở hai hạng này giảm.
 
 ### Kiểm chứng
 
 | Mẫu | Giữ ngắn (2 ATR, 2R, 20 phiên) | Giữ dài (3 ATR, 3R, 60 phiên) |
 |---|---|---|
-| Hạng A | 296 lệnh, thắng 47%, +0,14R, lãi TB +0,9% | 279 lệnh, thắng 43%, +0,39R, lãi TB +3,2% |
-| Hạng A và B | 1.406 lệnh, thắng 41%, 0,00R, lãi TB +0,1% | 1.366 lệnh, thắng 35%, +0,06R, lãi TB +0,6% |
+| Hạng A | 136 lệnh, thắng 49%, +0,28R, lãi TB +1,5% | 129 lệnh, thắng 43%, +0,38R, lãi TB +3,0% |
+| Hạng A và B | 869 lệnh, thắng 43%, +0,05R, lãi TB +0,3% | 836 lệnh, thắng 36%, +0,09R, lãi TB +0,9% |
 | Ngẫu nhiên | 13.585 lệnh, thắng 36%, −0,14R, lãi TB −0,9% | 13.155 lệnh, thắng 31%, −0,11R, lãi TB −1,2% |
 
 Chi tiết hạng A:
 
-- Vượt ngẫu nhiên +0,29R, khoảng 90% từ +0,14 đến +0,43.
-- Khoảng tin cậy của riêng kỳ vọng là −0,07 đến +0,35, tức vẫn chạm 0.
-- Giai đoạn trước +0,23R, 250 phiên cuối +0,01R.
-- Theo trạng thái thị trường: Lan tỏa +0,57R (75 lệnh), Suy yếu +0,11R (166 lệnh), Trung tính −0,36R (55 lệnh).
+- Vượt ngẫu nhiên +0,43R, khoảng 90% từ +0,29 đến +0,57.
+- Khoảng tin cậy của riêng kỳ vọng là +0,09 đến +0,46.
+- Giai đoạn trước +0,32R, 250 phiên cuối +0,22R.
+- Theo trạng thái thị trường: Lan tỏa +0,43R (46 lệnh), Suy yếu +0,38R (68 lệnh), Trung tính −0,32R (22 lệnh).
 
-Danh mục 10 mã điểm cao nhất, đổi mỗi 20 phiên, đạt +20,6% với sụt giảm tối đa −16,6%. Danh mục nhóm Điểm Bền đạt +29,5% với sụt giảm −9,9%, nên ở cấp danh mục, phần kết hợp chưa cho thấy vượt trội.
+Danh mục 10 mã điểm cao nhất, đổi mỗi 20 phiên, đạt +23,3% với sụt giảm tối đa −17,1%. Danh mục nhóm Điểm Bền đạt +29,5% với sụt giảm −9,9%, nên ở cấp danh mục, phần kết hợp chưa cho thấy vượt trội.
 
 Quy tắc được ghép sau khi đã biết từng phần có ích, nên kết quả có thể lạc quan. Danh sách cũng chưa xét báo cáo tài chính hay tin tức.
 
@@ -483,7 +480,7 @@ Phần này mô tả cách đi từ toàn bộ thị trường đến một gi�
 
 ### Phễu lọc ngày 30/10/2026
 
-1.620 → 203 → 68 → 23 → 23 → 19 → 7 → 1 mã, theo thứ tự: có dữ liệu, đủ thanh khoản, Điểm Bền từ 60, xu hướng tăng, chưa tăng quá xa, không có cờ, Cân nhắc trở lên, Ưu tiên.
+1.620 → 203 → 68 → 23 → 23 → 19 → 1 → 0 mã, theo thứ tự: có dữ liệu, đủ thanh khoản, Điểm Bền từ 60, xu hướng tăng, chưa tăng quá xa, không có cờ, Cân nhắc trở lên, Ưu tiên.
 
 ### Hạng mức
 
@@ -495,7 +492,7 @@ Phần này mô tả cách đi từ toàn bộ thị trường đến một gi�
 | Tạm tránh | Qua cổng nhưng có cờ |
 | Loại | Chưa qua cổng |
 
-Cờ gồm: vừa gãy xu hướng hoặc giao cắt tử thần trong 3 phiên, và phiên cuối giảm từ 3% với khối lượng từ 1,5 lần trung bình. Hạng A có cờ chỉ có 5 lệnh trong lịch sử, nên cờ là cảnh báo thận trọng, chưa được chứng minh có tác dụng.
+Cờ gồm: vừa gãy xu hướng hoặc giao cắt tử thần trong 3 phiên, và phiên cuối giảm từ 3% với khối lượng từ 1,5 lần trung bình. Hạng A có cờ có rất ít lệnh trong lịch sử, nên cờ là cảnh báo thận trọng, chưa được chứng minh có tác dụng.
 
 ### 6 trụ xếp hạng
 
@@ -503,7 +500,7 @@ Cờ gồm: vừa gãy xu hướng hoặc giao cắt tử thần trong 3 phiên,
 |---|---|
 | Bền | Điểm Bền |
 | Xu hướng | Tăng mạnh 100, Tăng 70, Đi ngang hoặc thiếu lịch sử 40, Giảm 0 |
-| Thông | 20 điểm mỗi tiêu chí đạt |
+| Thông | 33,3 điểm mỗi tiêu chí đạt |
 | Tín hiệu | Dẫn dắt 100, Kéo về hoặc Giao cắt vàng 60, không có 30 |
 | Điểm mua | Cách MA20 đến 1,5 ATR là 100, đến 2,5 ATR là 70, xa hơn 30, dưới −1 ATR là 60 |
 | Thanh khoản | Thang log từ 3 tỷ đến 100 tỷ |
@@ -512,12 +509,12 @@ Cờ gồm: vừa gãy xu hướng hoặc giao cắt tử thần trong 3 phiên,
 
 | Phong cách | Bền | Xu hướng | Thông | Tín hiệu | Điểm mua | Thanh khoản | Lợi suất 10 mã | Sụt giảm |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
-| Cân bằng | 35 | 20 | 15 | 15 | 10 | 5 | +27,4% | −17,0% |
-| Phòng thủ | 55 | 15 | 5 | 5 | 10 | 10 | +39,9% | −17,0% |
-| Theo xu hướng | 15 | 35 | 5 | 30 | 5 | 10 | +14,0% | −21,1% |
-| Tích lũy | 20 | 15 | 45 | 5 | 10 | 5 | +2,9% | −20,0% |
+| Cân bằng | 35 | 20 | 15 | 15 | 10 | 5 | +23,7% | −15,2% |
+| Phòng thủ | 55 | 15 | 5 | 5 | 10 | 10 | +35,9% | −15,8% |
+| Theo xu hướng | 15 | 35 | 5 | 30 | 5 | 10 | +12,5% | −19,1% |
+| Theo Thông | 20 | 15 | 45 | 5 | 10 | 5 | +7,5% | −20,7% |
 
-Cùng kỳ: VNINDEX +38,6%, mọi mã thanh khoản +0,4%. Giữ 5 mã thay vì 10 mã theo Cân bằng chỉ đạt +6,2%, sụt −23,5%.
+Cùng kỳ: VNINDEX +38,6%, mọi mã thanh khoản +0,4%. Giữ 5 mã thay vì 10 mã theo Cân bằng đạt +18,2%, sụt −17,7%.
 
 ### Giỏ so sánh
 
@@ -532,11 +529,11 @@ Cùng kỳ: VNINDEX +38,6%, mọi mã thanh khoản +0,4%. Giữ 5 mã thay vì 
 
 | Kỳ vọng mỗi lệnh | Theo mô phỏng | Trượt giá 0,2% | Trượt giá 0,5% |
 |---|---:|---:|---:|
-| Ưu tiên | +0,14R | +0,09R | +0,01R |
-| Ưu tiên và Cân nhắc | −0,00R | −0,05R | −0,12R |
+| Ưu tiên | +0,28R | +0,23R | +0,16R |
+| Ưu tiên và Cân nhắc | +0,05R | 0,00R | −0,07R |
 | Ngẫu nhiên | −0,14R | −0,17R | −0,23R |
 
-10 lệnh tốt nhất chiếm 62% tổng kết quả của hạng Ưu tiên, và phần lớn lợi thế đến từ quý 2 đến quý 4 năm 2025.
+10 lệnh tốt nhất chiếm 55% tổng kết quả của hạng Ưu tiên, và phần lớn lợi thế đến từ quý 1 đến quý 4 năm 2025.
 
 ## 14. Từng màn hình
 
@@ -550,11 +547,11 @@ Một danh sách duy nhất với 5 nhóm:
 |---|---|
 | Đáng xem nhất | Hạng Ưu tiên hoặc Cân nhắc |
 | Đạt chất lượng | Qua cổng bắt buộc |
-| Đang tích lũy | Đạt từ 4 trên 5 tiêu chí của Thông |
+| Điểm mua của Thông | Đủ 3 tiêu chí của Thông ở phiên cuối |
 | Ít biến động | Điểm Bền từ 80 |
 | Tất cả | Mọi mã đủ thanh khoản |
 
-Mỗi dòng có ba cột chấm màu. Cột 4 điều kiện theo thứ tự chất lượng, xu hướng, điểm vào, thanh khoản. Cột Tiêu chí Thông theo thứ tự EMA xếp tầng, RSI trên 50, EMA chưa giãn, nền tích lũy, POC tăng dần, xanh là đạt và đỏ là chưa đạt. Cột Tín hiệu có một chấm theo trụ Tín hiệu trong 3 phiên gần nhất: xanh là Dẫn dắt, vàng là Kéo về hoặc Giao cắt vàng, xám là không có. Rê chuột lên chấm để xem tên tiêu chí.
+Mỗi dòng có ba cột chấm màu. Cột 4 điều kiện theo thứ tự chất lượng, xu hướng, điểm vào, thanh khoản. Cột Tiêu chí Thông theo thứ tự EMA xếp tầng, RSI gần đỉnh trước, Điểm mua, xanh là đạt và đỏ là chưa đạt. Cột Tín hiệu có một chấm theo trụ Tín hiệu trong 3 phiên gần nhất: xanh là Dẫn dắt, vàng là Kéo về hoặc Giao cắt vàng, xám là không có. Rê chuột lên chấm để xem tên tiêu chí.
 
 Bước này không hiện số tài chính. P/E và số liệu 8 quý nằm ở mục Tài chính của bước Xem mã, bằng giá khớp thật chia EPS tự tính, chỉ lấy báo cáo đã qua 60 ngày kể từ cuối quý vì API không có ngày công bố. Chúng chỉ để tham khảo, không tính vào Điểm, hạng hay Kết luận.
 

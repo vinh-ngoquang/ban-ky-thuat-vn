@@ -79,31 +79,6 @@
     return store.thong;
   }
 
-  /* Áp 5 tiêu chí lên số đo thô của một mã. Trả về đạt/không từng tiêu chí và số để hiển thị. */
-  function evalThong(u, row, opt, T) {
-    const empty = { pass: [false, false, false, false, false], count: 0, missing: true };
-    if (!row) return empty;
-    const [e10, e20, e50, e150, e200] = row.e;
-    const has = [e10, e20, e50, e150, e200].every(isNum);
-    const tiers = has ? [row.c > e10, e10 > e20, e20 > e50, e50 > e150, e150 > e200] : [];
-    const t1 = has && tiers.every(Boolean);
-    const t2 = isNum(u.rsi) && u.rsi > 50;
-    const s150 = has ? Math.abs(e50 / e150 - 1) : null;
-    const s200 = has ? Math.abs(e50 / e200 - 1) : null;
-    const t3 = has && s150 < T.maxSpread && s200 < T.maxSpread;
-    const w = row.w;
-    let t4 = false, t5 = false, base = null;
-    if (w) {
-      const [range, tight, vol, sup, p1, p2, p3] = w;
-      base = { range, tight, vol, sup, p1, p2, p3 };
-      const maxRange = opt.maxRange / 100;
-      t4 = isNum(range) && isNum(tight) && isNum(vol) && range <= maxRange && tight <= T.tight * range && vol < 1 && (!isNum(sup) || sup < 1);
-      t5 = isNum(p1) && isNum(p2) && isNum(p3) && p1 < p2 && p2 < p3;
-    }
-    const pass = [t1, t2, t3, t4, t5];
-    return { pass, count: pass.filter(Boolean).length, tiers: tiers.filter(Boolean).length, hasEma: has, s150, s200, base, cross: row.x };
-  }
-
   function decode(item, u) {
     const dates = store.market.dates;
     const idx = [];
@@ -314,6 +289,6 @@
 
   window.Core = {
     COL, LIMIT, TREND, REGIME, esc, fold, isNum, fmt, toneOf, store, loadAll, loadSymbol, sma, ewm, rsi, macd, atr, bollinger, weekly,
-    buildSeries, volumeProfile, loadThong, evalThong, tick, priceLimits, stopHitChance, plan, evidenceLabel, setup, quintileOf,
+    buildSeries, volumeProfile, loadThong, tick, priceLimits, stopHitChance, plan, evidenceLabel, setup, quintileOf,
   };
 })();

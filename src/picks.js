@@ -10,11 +10,11 @@
   const LENSES = [
     { id: 'best', name: 'Đáng xem nhất', note: 'Qua mọi bộ lọc, xếp hạng cao', test: (r) => r.tier === 'first' || r.tier === 'second' },
     { id: 'pass', name: 'Đạt chất lượng', note: 'Bền, xu hướng tăng, chưa tăng quá xa', test: (r) => !r.fails.length },
-    { id: 'thong', name: 'Đang tích lũy', note: 'Đạt từ 4 trên 5 tiêu chí của Thông', test: (r) => r.checks.filter(Boolean).length >= 4 },
+    { id: 'thong', name: 'Điểm mua của Thông', note: 'Đủ 3 tiêu chí của Thông', test: (r) => r.checks[2] },
     { id: 'stable', name: 'Ít biến động', note: 'Điểm Bền từ 80', test: (r) => r.u.score >= 80 },
     { id: 'all', name: 'Tất cả', note: 'Mọi mã đủ thanh khoản', test: () => true },
   ];
-  const THONG_LABELS = ['EMA xếp tầng', 'RSI trên 50', 'EMA chưa giãn', 'Nền tích lũy', 'POC tăng dần'];
+  const THONG_LABELS = ['EMA xếp tầng', 'RSI gần đỉnh trước', 'Điểm mua'];
   const SIGNAL_LEVELS = { 100: ['good', 'Dẫn dắt'], 60: ['warn', 'Kéo về hoặc Giao cắt vàng'], 30: ['', 'Không có'] };   // theo điểm trụ Tín hiệu
   const BASKET_MIN = 8, BASKET_MAX = 12, BASKET_TARGET = 10, CORR_SESSIONS = 250;
 
@@ -141,7 +141,7 @@
       box.innerHTML = '<p class="empty">Không có mã nào khớp. Hãy chọn nhóm khác hoặc bỏ bớt bộ lọc.</p>';
       return;
     }
-    box.innerHTML = `<table class="find-table"><thead><tr><th class="l">Mã</th><th class="l">Kết luận</th><th title="Điểm tổng hợp, chỉ so giữa các mã cùng kết luận">Điểm</th><th class="l">4 điều kiện</th><th class="l" title="EMA xếp tầng, RSI trên 50, EMA chưa giãn, Nền tích lũy, POC tăng dần">Tiêu chí Thông</th><th class="l" title="Tín hiệu còn hiệu lực trong 3 phiên gần nhất">Tín hiệu</th><th title="Giá giảm bao nhiêu thì chạm mức cắt lỗ">Có thể lỗ</th><th title="Khoảng cách tới mức giá thường gặp lực bán">Tới kháng cự</th><th title="Giá trị giao dịch trung bình 20 phiên">Thanh khoản</th><th></th></tr></thead><tbody>${rows.map((r, i) => {
+    box.innerHTML = `<table class="find-table"><thead><tr><th class="l">Mã</th><th class="l">Kết luận</th><th title="Điểm tổng hợp, chỉ so giữa các mã cùng kết luận">Điểm</th><th class="l">4 điều kiện</th><th class="l" title="EMA xếp tầng, RSI gần đỉnh trước, Điểm mua">Tiêu chí Thông</th><th class="l" title="Tín hiệu còn hiệu lực trong 3 phiên gần nhất">Tín hiệu</th><th title="Giá giảm bao nhiêu thì chạm mức cắt lỗ">Có thể lỗ</th><th title="Khoảng cách tới mức giá thường gặp lực bán">Tới kháng cự</th><th title="Giá trị giao dịch trung bình 20 phiên">Thanh khoản</th><th></th></tr></thead><tbody>${rows.map((r, i) => {
       const a = assess(r.u);
       const room = roomOf(r, r.u);
       const inBasket = state.basket.syms.includes(r.s);
@@ -150,13 +150,13 @@
         <td class="l"><span class="sym">${esc(r.s)}</span><span class="nm">${esc(r.u.short)}</span></td>
         <td class="l">${kit.chip(a.short, a.tone)}</td><td class="num"><b>${fmt.n(r.pts)}</b></td>
         <td class="l"><span class="dots4">${a.checks.map((c) => `<i class="${c.tone}" title="${esc(c.label)}: ${esc(c.text)}"></i>`).join('')}</span></td>
-        <td class="l"><span class="dots4" role="img" aria-label="Đạt ${r.checks.filter(Boolean).length} trên 5 tiêu chí Thông">${r.checks.map((ok, k) => `<i class="${ok ? 'good' : 'bad'}" title="${esc(THONG_LABELS[k])}: ${ok ? 'Đạt' : 'Chưa đạt'}"></i>`).join('')}</span></td>
+        <td class="l"><span class="dots4" role="img" aria-label="Đạt ${r.checks.filter(Boolean).length} trên 3 tiêu chí Thông">${r.checks.map((ok, k) => `<i class="${ok ? 'good' : 'bad'}" title="${esc(THONG_LABELS[k])}: ${ok ? 'Đạt' : 'Chưa đạt'}"></i>`).join('')}</span></td>
         <td class="l"><span class="dots4" role="img" aria-label="Tín hiệu: ${esc(sigText)}"><i class="${sigTone}" title="Tín hiệu: ${esc(sigText)}"></i></span></td>
         <td class="num">${fmt.pct(-r.stop)}</td><td class="num ${room != null && room < r.stop ? 'down' : ''}">${room == null ? '–' : fmt.pct(room)}</td>
         <td class="num">${fmt.ty(r.u.adv)}</td>
         <td><button class="pk-add" data-add="${esc(r.s)}" aria-pressed="${inBasket}" aria-label="${inBasket ? 'Bỏ' : 'Thêm'} ${esc(r.s)} ${inBasket ? 'khỏi' : 'vào'} giỏ">${inBasket ? '✓' : '+'}</button></td></tr>`;
     }).join('')}</tbody></table>
-    <p class="note dots-key"><span class="dots4"><i class="good"></i></span> Đạt <span class="dots4"><i class="warn"></i></span> Tạm <span class="dots4"><i class="bad"></i></span> Chưa đạt. Bốn điều kiện theo thứ tự: Chất lượng, Xu hướng, Điểm vào, Thanh khoản. Tiêu chí Thông theo thứ tự: EMA xếp tầng, RSI trên 50, EMA chưa giãn, Nền tích lũy, POC tăng dần. Tín hiệu trong 3 phiên: xanh là Dẫn dắt, vàng là Kéo về hoặc Giao cắt vàng, xám là không có. Điểm vào so khoảng trống tới kháng cự với mức có thể lỗ, khác trụ Điểm mua trong cột Điểm, vốn đo khoảng cách tới MA20.</p>`;
+    <p class="note dots-key"><span class="dots4"><i class="good"></i></span> Đạt <span class="dots4"><i class="warn"></i></span> Tạm <span class="dots4"><i class="bad"></i></span> Chưa đạt. Bốn điều kiện theo thứ tự: Chất lượng, Xu hướng, Điểm vào, Thanh khoản. Tiêu chí Thông theo thứ tự: EMA xếp tầng, RSI gần đỉnh trước, Điểm mua. Tín hiệu trong 3 phiên: xanh là Dẫn dắt, vàng là Kéo về hoặc Giao cắt vàng, xám là không có. Điểm vào so khoảng trống tới kháng cự với mức có thể lỗ, khác trụ Điểm mua trong cột Điểm, vốn đo khoảng cách tới MA20.</p>`;
     $$('tbody tr', box).forEach((tr) => tr.addEventListener('click', (e) => {
       const add = e.target.closest('[data-add]');
       if (add) { toggle(add.dataset.add); drawTable(); return; }

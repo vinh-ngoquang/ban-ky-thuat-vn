@@ -39,10 +39,10 @@ SETUPS = {
                   "rule": "Đóng cửa thủng MA50 với khối lượng từ 1,3 lần trung bình, phiên trước còn trên MA50."},
     "death": {"name": "Giao cắt tử thần", "side": "risk",
               "rule": "MA50 cắt xuống MA200."},
-    "thong": {"name": "Mẫu Thông, đủ 5 tiêu chí", "side": "long",
-              "rule": "EMA xếp tầng, RSI trên 50, EMA50 cách EMA150 và EMA200 dưới 20%, nền tích lũy, POC tăng dần qua 3 đoạn."},
-    "thong4": {"name": "Mẫu Thông, 4 tiêu chí đầu", "side": "long",
-               "rule": "Như Mẫu Thông nhưng chưa yêu cầu POC tăng dần."},
+    "thong": {"name": "Điểm mua của Thông", "side": "long",
+              "rule": "EMA xếp tầng, RSI gần bằng RSI ở đỉnh ngắn hạn trước, giá bật từ EMA10 hoặc EMA20, tiệm cận kháng cự gần nhất, khối lượng lớn hơn 5 phiên giảm trước đó."},
+    "thong2": {"name": "Xu hướng và RSI của Thông", "side": "long",
+               "rule": "EMA xếp tầng và RSI gần bằng RSI ở đỉnh ngắn hạn trước, chưa cần điểm mua."},
     "pot_a": {"name": "Mã tiềm năng hạng A", "side": "long",
               "rule": "Qua cổng bắt buộc và Điểm kết hợp từ 75."},
     "pot_b": {"name": "Mã tiềm năng hạng A và B", "side": "long",
@@ -53,7 +53,7 @@ SETUPS = {
 POT_MIN_SCORE = 60             # cổng: Điểm Bền tối thiểu
 POT_MAX_EXT = 4                # cổng: cách MA20 tối đa, tính theo ATR
 POT_A, POT_B = 75, 60          # ngưỡng hạng của Điểm kết hợp
-POT_THONG_PTS = 6              # điểm cho mỗi tiêu chí Thông
+POT_THONG_PTS = 10             # điểm cho mỗi tiêu chí Thông, 3 tiêu chí giữ nguyên tối đa 30 điểm như trước
 POT_BONUS = {"leader": 20, "pullback": 10, "golden": 10}
 POT_SIGNAL_WINDOW = 3          # tín hiệu còn hiệu lực trong 3 phiên
 
@@ -66,18 +66,20 @@ PICK_STYLES = {
                   "w": {"ben": 55, "trend": 15, "thong": 5, "signal": 5, "buy": 10, "liq": 10}},
     "momentum": {"name": "Theo xu hướng", "note": "Ưu tiên xu hướng và tín hiệu",
                  "w": {"ben": 15, "trend": 35, "thong": 5, "signal": 30, "buy": 5, "liq": 10}},
-    "accumulate": {"name": "Tích lũy", "note": "Ưu tiên tiêu chí của Thông",
+    "accumulate": {"name": "Theo Thông", "note": "Ưu tiên tiêu chí của Thông",
                    "w": {"ben": 20, "trend": 15, "thong": 45, "signal": 5, "buy": 10, "liq": 5}},
 }
 PICK_WEIGHTS = PICK_STYLES["balanced"]["w"]
 PICK_DUMP = -0.03              # cờ: giảm từ 3% với khối lượng từ 1,5 lần trung bình
 
 # Bộ lọc "Phân tích của Thông"
-THONG_WINDOW = 40              # số phiên của mỗi đoạn nền, khoảng 2 tháng; POC so sánh qua 3 đoạn liên tiếp
-THONG_MAX_SPREAD = 0.20        # EMA50 cách EMA150, EMA200 tối đa
-THONG_MAX_RANGE = 0.20         # biên độ cao nhất so với thấp nhất của nền tối đa
-THONG_TIGHT = 0.6              # biên 10 phiên cuối không quá 60% biên cả nền
-POC_BINS = 24
+THONG_PEAK_SIDE = 5            # đỉnh ngắn hạn: cao nhất trong số phiên này ở mỗi bên, nên chậm 5 phiên mới xác nhận
+THONG_PEAK_LOOKBACK = 60       # chỉ so với đỉnh trong số phiên gần nhất này
+THONG_RSI_GAP = 5              # RSI "gần bằng": lệch không quá số điểm này
+THONG_TOUCH = 1.01             # chạm EMA: giá thấp nhất cách đường không quá 1%, như tín hiệu Kéo về
+THONG_TOUCH_DAYS = 3           # lần chạm EMA còn hiệu lực trong số phiên này
+THONG_NEAR_ATR = 1.5           # tiệm cận kháng cự: cách không quá số ATR này
+THONG_DOWN_DAYS = 5            # khối lượng phải lớn hơn phiên lớn nhất trong số phiên giảm gần nhất này
 
 # Tài chính chỉ để hiển thị, không tính vào điểm hay hạng
 FIN_LAG_DAYS = 60              # API không có ngày công bố: chỉ dùng số liệu sau 60 ngày kể từ cuối quý
@@ -85,74 +87,76 @@ FIN_STALE = 140                # bỏ số liệu cũ hơn số dòng này, trá
 SPLIT_MIN = 1.08               # hệ số điều chỉnh giá từ mức này mới coi là chia cổ phiếu, thấp hơn thường là cổ tức tiền
 
 
-def poc_price(h, l, v, bins=POC_BINS):
-    """Giá có khối lượng lớn nhất trong một khoảng cố định, chia đều khối lượng trên dải cao–thấp của từng nến."""
-    ok = v > 0
-    if ok.sum() < 3:
-        return np.nan
-    lo, hi = l[ok].min(), h[ok].max()
-    if not hi > lo:
-        return np.nan
-    step = (hi - lo) / bins
-    hist = np.zeros(bins)
-    for a, b, q in zip(l[ok], h[ok], v[ok]):
-        i, k = int((a - lo) / step), min(bins - 1, int((b - lo) / step))
-        i = min(i, bins - 1)
-        hist[i:k + 1] += q / (k - i + 1)
-    return lo + (hist.argmax() + 0.5) * step
+def levels(h, l, c, v, atr):
+    """Hỗ trợ và kháng cự từ các đỉnh, đáy cục bộ trong 250 phiên, gộp theo cụm 0,75 ATR."""
+    n = len(c)
+    if n < 30 or not np.isfinite(atr) or atr <= 0:
+        return []
+    start = max(0, n - 250)
+    pivots = []
+    w = 4
+    for i in range(start + w, n - w):
+        if h[i] >= h[i - w:i + w + 1].max():
+            pivots.append((h[i], i, v[i]))
+        if l[i] <= l[i - w:i + w + 1].min():
+            pivots.append((l[i], i, v[i]))
+    if not pivots:
+        return []
+    pivots.sort()
+    clusters, cur = [], [pivots[0]]
+    for p in pivots[1:]:
+        if p[0] - cur[-1][0] <= 0.75 * atr:
+            cur.append(p)
+        else:
+            clusters.append(cur)
+            cur = [p]
+    clusters.append(cur)
+    last = c[-1]
+    out = []
+    for cl in clusters:
+        price = float(np.average([p[0] for p in cl]))
+        out.append({"price": round(price, 2), "touches": len(cl), "last": int(max(p[1] for p in cl)),
+                    "kind": "res" if price > last else "sup"})
+    res = sorted((x for x in out if x["kind"] == "res"), key=lambda x: x["price"])[:4]
+    sup = sorted((x for x in out if x["kind"] == "sup"), key=lambda x: -x["price"])[:4]
+    return res + sup
 
 
-def thong_cell(d, t, j, w):
-    """Các số đo nền và POC của một mã tại phiên t, chỉ dùng dữ liệu đến hết phiên t."""
-    H, L, C, V = d["_H"], d["_L"], d["_C"], d["_V"]
-    if t - 3 * w + 1 < 0 or not np.isfinite(C[t - w + 1:t + 1, j]).all():
-        return None
-    a = t - w + 1
-    hh, ll = H[a:t + 1, j].max(), L[a:t + 1, j].min()
-    hh10, ll10 = H[t - 9:t + 1, j].max(), L[t - 9:t + 1, j].min()
-    vol = V[a:t + 1, j]
-    closes = C[a:t + 1, j]
-    span = hh - ll
-    low = closes <= ll + span / 3
-    high = closes >= hh - span / 3
-    vol_w = vol.mean()
-    sup = vol[low].mean() / vol[high].mean() if low.sum() >= 3 and high.sum() >= 3 and vol[high].mean() > 0 else np.nan
-    pocs = [poc_price(H[s:s + w, j], L[s:s + w, j], V[s:s + w, j]) for s in (t - 3 * w + 1, t - 2 * w + 1, t - w + 1)]
-    return {"range": hh / ll - 1 if ll > 0 else np.nan, "tight": hh10 / ll10 - 1 if ll10 > 0 else np.nan,
-            "vol": V[t - 9:t + 1, j].mean() / vol_w if vol_w > 0 else np.nan, "sup": sup, "p1": pocs[0], "p2": pocs[1], "p3": pocs[2]}
-
-
-def base_ok(m):
-    """Tiêu chí 4: đi ngang biên hẹp, biên co dần, khối lượng cạn dần và thấp hơn khi về gần hỗ trợ."""
-    return (m["range"] <= THONG_MAX_RANGE and m["tight"] <= THONG_TIGHT * m["range"] and m["vol"] < 1
-            and (not np.isfinite(m["sup"]) or m["sup"] < 1))
-
-
-def poc_rising(m):
-    return m["p1"] < m["p2"] < m["p3"]
+def nearest_res(d, t, j):
+    """Kháng cự gần nhất của một mã tại phiên t, chỉ dùng dữ liệu đến hết phiên t."""
+    C = d["_C"]
+    idx = np.flatnonzero(np.isfinite(C[:t + 1, j]))
+    near = levels(d["_H"][idx, j], d["_L"][idx, j], C[idx, j], d["_V"][idx, j], float(d["atr"].iat[t, j]))
+    return min((x["price"] for x in near if x["kind"] == "res"), default=None)
 
 
 def thong(d):
-    """Thêm các đường EMA và hai tín hiệu kiểm chứng của bộ lọc Thông."""
-    c = d["c"]
+    """Thêm các đường EMA, 3 tiêu chí của Thông và hai tín hiệu kiểm chứng."""
+    c, h, l, v = d["c"], d["h"], d["l"], d["v"]
     for n in (10, 20, 50, 150, 200):
         d[f"ema{n}"] = c.ewm(span=n, adjust=False, min_periods=n).mean()
     e10, e20, e50, e150, e200 = (d[f"ema{n}"] for n in (10, 20, 50, 150, 200))
-    d["t1"] = (c > e10) & (e10 > e20) & (e20 > e50) & (e50 > e150) & (e150 > e200)
-    d["t2"] = d["rsi"] > 50
-    d["t3"] = ((e50 / e150 - 1).abs() < THONG_MAX_SPREAD) & ((e50 / e200 - 1).abs() < THONG_MAX_SPREAD)
+    # EMA10 nằm trên hoặc vừa cắt lên EMA20 đều cho kết quả EMA10 >= EMA20 ở phiên đang xét
+    d["t1"] = (c > e10) & (e10 >= e20) & (e20 > e50) & (e50 > e150) & (e150 > e200)
+    side = THONG_PEAK_SIDE
+    peak = h == h.rolling(2 * side + 1, center=True, min_periods=2 * side + 1).max()
+    d["peak_rsi"] = d["rsi"].where(peak).shift(side).ffill(limit=THONG_PEAK_LOOKBACK - side)   # shift: đỉnh chỉ biết sau khi xác nhận
+    d["peak_px"] = h.where(peak).shift(side).ffill(limit=THONG_PEAK_LOOKBACK - side)
+    d["t2"] = (d["rsi"] - d["peak_rsi"]).abs() <= THONG_RSI_GAP
+    touch = (l <= e10 * THONG_TOUCH) | (l <= e20 * THONG_TOUCH)
+    d["bounce"] = (touch.astype(float).rolling(THONG_TOUCH_DAYS, min_periods=1).max() > 0) & (c > c.shift(1))
+    falling = v.where(c < c.shift(1))
+    d["down_vol"] = falling.apply(lambda s: s.dropna().rolling(THONG_DOWN_DAYS).max().reindex(s.index).ffill()).shift(1)
+    d["vol_up"] = v > d["down_vol"]
     d["_H"], d["_L"], d["_C"], d["_V"] = (d[k].to_numpy() for k in ("h", "l", "c", "v"))
-    cand = (d["t1"] & d["t2"] & d["t3"] & d["liquid"] & d["traded"]).to_numpy()
-    four = np.zeros_like(cand)
-    five = np.zeros_like(cand)
-    w = THONG_WINDOW
+    two = d["t1"] & d["t2"]
+    cand = (two & d["bounce"] & d["vol_up"] & d["liquid"] & d["traded"]).to_numpy()
+    buy = np.zeros_like(cand)
     for t, j in zip(*np.nonzero(cand)):
-        m = thong_cell(d, t, j, w)
-        if m and base_ok(m):
-            four[t, j] = True
-            five[t, j] = poc_rising(m)
-    idx, cols = c.index, c.columns
-    return pd.DataFrame(four, index=idx, columns=cols), pd.DataFrame(five, index=idx, columns=cols)
+        res = nearest_res(d, t, j)
+        buy[t, j] = res is not None and res - d["_C"][t, j] <= THONG_NEAR_ATR * d["atr"].iat[t, j]
+    d["t3"] = pd.DataFrame(buy, index=c.index, columns=c.columns)
+    return two, d["t3"]
 
 
 def load():
@@ -355,7 +359,7 @@ def signals(d):
     s["oversold"] = (rsi >= 30) & (rsi.shift(1) < 30) & (c > o)
     s["breakdown"] = (c < ma50) & (c.shift(1) >= ma50.shift(1)) & (vr >= 1.3)
     s["death"] = (ma50 < ma200) & (ma50.shift(1) >= ma200.shift(1))
-    s["thong4"], s["thong"] = thong(d)
+    s["thong2"], s["thong"] = thong(d)
     out = {}
     for name, sig in s.items():
         sig = sig.fillna(False) & d["liquid"] & d["traded"]
@@ -376,17 +380,11 @@ def potential(d):
     for key, pts in POT_BONUS.items():
         alive = d["signals"][key].astype(float).rolling(POT_SIGNAL_WINDOW, min_periods=1).max() > 0
         bonus = bonus.where(~alive | (bonus >= pts), float(pts))
-    t123 = d["t1"].astype(int) + d["t2"].astype(int) + d["t3"].astype(int)
-    points = (d["score"] * 0.5 + t123 * POT_THONG_PTS + bonus).where(gate)
-    extra = np.zeros(points.shape)
-    for t, j in zip(*np.nonzero(gate.to_numpy())):
-        m = thong_cell(d, t, j, THONG_WINDOW)
-        if m:
-            extra[t, j] = (int(base_ok(m)) + int(poc_rising(m))) * POT_THONG_PTS   # int: cộng hai bool numpy cho ra 1, không phải 2
+    count = d["t1"].astype(int) + d["t2"].astype(int) + d["t3"].astype(int)
     d["pot_bonus"] = bonus
-    d["pot"] = points + extra
+    d["pot"] = (d["score"] * 0.5 + count * POT_THONG_PTS + bonus).where(gate)
     d["pot_gate"] = gate
-    d["thong_n"] = (t123 + extra / POT_THONG_PTS).where(gate)
+    d["thong_n"] = count.where(gate)
     return d["pot"]
 
 
@@ -398,7 +396,7 @@ def picks(d):
     pillar = {}
     pillar["ben"] = d["score"]
     pillar["trend"] = d["trend"].replace({"strong": 100.0, "up": 70.0, "side": 40.0, "new": 40.0, "down": 0.0}).astype(float)
-    pillar["thong"] = d["thong_n"] * 20
+    pillar["thong"] = d["thong_n"] * 100 / 3
     sig = pd.DataFrame(30.0, index=idx, columns=cols)
     sig = sig.where(~(alive("pullback") | alive("golden")), 60.0).where(~alive("leader"), 100.0)
     pillar["signal"] = sig

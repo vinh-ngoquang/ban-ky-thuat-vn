@@ -18,7 +18,7 @@
     tab: 'find', sym: null, tf: 'd', chart: null, thData: null, sel: 0, list: [],
     pick: Object.assign({ lens: 'best', style: 'defensive', sector: '', exchange: '', q: '', easy: false }, save.get('pick', {})),
     basket: Object.assign({ syms: [], capital: 1000, risk: 1 }, save.get('basket', {})),
-    show: Object.assign({ ma20: true, ma50: true, ma200: true, bb: false, sr: true, plan: true, markers: false, profile: false, ema: false, poc: false }, save.get('show', {})),
+    show: Object.assign({ ma20: true, ma50: true, ma200: true, bb: false, sr: true, plan: true, markers: false, profile: false, ema: false }, save.get('show', {})),
     panes: save.get('panes', ['volume']),
   };
 
@@ -140,7 +140,7 @@
   const legend = (items) => `<div class="legend">${items.map(([n, c]) => `<span><i style="background:${c}"></i>${esc(n)}</span>`).join('')}</div>`;
 
   /* ---- bước 2: Xem mã ---- */
-  const INTERNAL = /^(pot_|thong)/;   // quy tắc tổng hợp, không phải tín hiệu riêng trên biểu đồ
+  const INTERNAL = /^(pot_|thong2)/;   // quy tắc tổng hợp, không phải tín hiệu riêng trên biểu đồ
   const CHART_PLAN = { capital: 500, riskPct: 1, k: 2, targetR: 2 };    // cùng quy tắc kiểm chứng, chỉ dùng để vẽ cắt lỗ và mục tiêu
   const mark = (ok, text) => `<span class="mk ${ok ? 'yes' : 'no'}">${ok ? ICON.check : ICON.x}<span>${esc(text)}</span></span>`;
 
@@ -149,16 +149,23 @@
   function thongPanel(u) {
     const T = state.thData, row = T?.rows[u.s];
     if (!row) return '<p class="empty">Chưa đủ dữ liệu.</p>';
-    const r = C.evalThong(u, row, { maxRange: T.maxRange * 100 }, T), b = r.base;
+    const [e10, e20, e50, e150, e200] = row.e;
+    const hasEma = [e10, e20, e50, e150, e200].every(isNum);
+    const tiers = hasEma ? [row.c > e10, e10 >= e20, e20 > e50, e50 > e150, e150 > e200].filter(Boolean).length : 0;
+    const emaText = !hasEma ? 'Chưa đủ lịch sử' : !row.p[0] ? `Mới đạt ${tiers} trên 5 tầng` : isNum(row.x) ? `Xếp đúng thứ tự, EMA10 cắt lên EMA20 ${row.x ? `${row.x} phiên trước` : 'trong phiên này'}` : 'Giá trên EMA10, các đường xếp đúng thứ tự';
+    const gap = isNum(row.rsi) && isNum(row.peakRsi) ? Math.abs(row.rsi - row.peakRsi) : null;
+    const nearOk = isNum(row.resAtr) && row.resAtr <= T.nearAtr;
+    const volOk = isNum(row.vol) && isNum(row.downVol) && row.vol > row.downVol;
     const items = [
-      ['EMA xếp tầng', r.pass[0], r.hasEma ? (r.pass[0] ? 'Giá trên EMA10, các đường xếp đúng thứ tự' : `Mới đạt ${r.tiers} trên 5 tầng`) : 'Chưa đủ lịch sử'],
-      ['RSI trên 50', r.pass[1], `RSI hiện tại ${fmt.n(u.rsi)}`],
-      ['Các đường EMA chưa giãn', r.pass[2], r.hasEma ? `EMA50 cách EMA150 ${fmt.pctAbs(r.s150, 0)}, cách EMA200 ${fmt.pctAbs(r.s200, 0)}` : '–'],
-      ['Nền tích lũy', r.pass[3], b ? `Biên ${fmt.pctAbs(b.range, 0)} trong ${T.window} phiên, khối lượng ${fmt.n(b.vol, 2)} lần trung bình` : '–'],
-      ['POC tăng dần', r.pass[4], b ? `${fmt.px(b.p1)} → ${fmt.px(b.p2)} → ${fmt.px(b.p3)}` : '–'],
+      ['1. EMA xếp tầng', row.p[0], emaText],
+      ['2. RSI gần đỉnh trước', row.p[1], gap == null ? `Chưa có đỉnh ngắn hạn trong ${T.peakDays} phiên` : `RSI ${fmt.n(row.rsi, 1)}, RSI ở đỉnh ${fmt.px(row.peakPx)} là ${fmt.n(row.peakRsi, 1)}, lệch ${fmt.n(gap, 1)} điểm`],
+      ['3. Điểm mua', row.p[2], row.p[2] ? 'Đủ cả 3 điều kiện bên dưới' : row.p[0] && row.p[1] ? 'Chưa đủ 3 điều kiện bên dưới' : 'Cần đạt tiêu chí 1 và 2 trước'],
+      ['Bật từ EMA10 hoặc EMA20', row.bounce, `Chạm trong ${T.touchDays} phiên gần nhất và phiên này tăng`],
+      ['Tiệm cận kháng cự', nearOk, isNum(row.res) ? `Kháng cự ${fmt.px(row.res)}, cách ${fmt.n(row.resAtr, 1)} ATR` : 'Không có kháng cự phía trên'],
+      ['Khối lượng vượt phiên giảm', volOk, isNum(row.vol) && isNum(row.downVol) ? `${fmt.n(row.vol / 1e3, 0)} nghìn cp so với ${fmt.n(row.downVol / 1e3, 0)} nghìn cp` : '–'],
     ];
     return `<div class="thong-list">${items.map(([t, ok, d]) => `<div>${mark(ok, t)}<span class="muted">${esc(d)}</span></div>`).join('')}</div>
-      <p class="note" style="margin-top:6px">POC là mức giá có khối lượng giao dịch lớn nhất trong một đoạn. Công cụ so sánh 3 đoạn ${T.window} phiên liền nhau.</p>`;
+      <p class="note" style="margin-top:6px">Đỉnh ngắn hạn là đỉnh cao nhất trong 5 phiên mỗi bên, xét trong ${T.peakDays} phiên gần nhất. RSI gần bằng là lệch không quá ${fmt.n(T.rsiGap)} điểm. Tiệm cận là cách kháng cự không quá ${fmt.n(T.nearAtr, 1)} ATR. Khối lượng so với phiên lớn nhất trong ${T.downDays} phiên giảm gần nhất.</p>`;
   }
 
   /* Thanh chuyển mã. Mã ngoài danh sách: nút Sau đưa về mã đầu danh sách. */
@@ -213,7 +220,7 @@
           <div class="seg" id="tf" role="group" aria-label="Khung thời gian"><button data-t="d" aria-pressed="${state.tf === 'd'}">Ngày</button><button data-t="w" aria-pressed="${state.tf === 'w'}">Tuần</button></div>
           <details class="chart-more"><summary>Thêm chỉ báo</summary><div class="chart-more-body">
             <div class="toggles" id="tog-layers">
-              ${[['ma20', 'MA20', 'var(--s-ma20)'], ['ma50', 'MA50', 'var(--s-ma50)'], ['ma200', 'MA200', 'var(--s-ma200)'], ['ema', 'EMA của Thông', 'var(--s-e50)'], ['poc', 'POC', 'var(--accent)'], ['sr', 'Hỗ trợ, kháng cự', 'var(--muted)'], ['plan', 'Kế hoạch', 'var(--up)'], ['markers', 'Tín hiệu', 'var(--accent)'], ['bb', 'Bollinger', 'var(--s-ma20)'], ['profile', 'Khối lượng theo giá', 'var(--profile)']]
+              ${[['ma20', 'MA20', 'var(--s-ma20)'], ['ma50', 'MA50', 'var(--s-ma50)'], ['ma200', 'MA200', 'var(--s-ma200)'], ['ema', 'EMA của Thông', 'var(--s-e50)'],['sr', 'Hỗ trợ, kháng cự', 'var(--muted)'], ['plan', 'Kế hoạch', 'var(--up)'], ['markers', 'Tín hiệu', 'var(--accent)'], ['bb', 'Bollinger', 'var(--s-ma20)'], ['profile', 'Khối lượng theo giá', 'var(--profile)']]
 .map(([k, l, c]) => `<button class="tog" data-k="${k}" aria-pressed="${!!state.show[k]}" style="--c:${c}"><i></i>${l}</button>`).join('')}
             </div>
             <div class="toggles" id="panes" role="group" aria-label="Khung phụ"><span class="note">Khung dưới:</span>${[['volume', 'Khối lượng'], ['rsi', 'RSI'], ['macd', 'MACD'], ['rs', 'So với thị trường']].map(([k, l]) => `<button class="tog" data-k="${k}" aria-pressed="${state.panes.includes(k)}"><i></i>${l}</button>`).join('')}</div>
@@ -225,7 +232,7 @@
         <p class="note" style="margin-top:6px">Kéo để cuộn, lăn chuột để phóng to, nhấp đúp để về mặc định. Vùng xanh là mục tiêu, vùng đỏ là mức có thể lỗ, tính từ giá hiện tại với cắt lỗ 2 ATR và mục tiêu gấp 2 lần mức lỗ.</p>
       </section>
       <div class="acc-list">
-        ${acc('tieu-chi-thong', `Tiêu chí của Thông${passed != null ? `: đạt ${passed}/5` : ''}`, thongPanel(u))}
+        ${acc('tieu-chi-thong', `Tiêu chí của Thông${passed != null ? `: đạt ${passed}/3` : ''}`, thongPanel(u))}
         ${acc('tai-chinh-acc', 'Tài chính', finPanel(u))}
         ${acc('muc-gia-acc', 'Hỗ trợ và kháng cự', levelsPanel(data))}
         ${acc('dai-gia-acc', 'Giá có thể đi tới đâu', rangePanel(u) || '<p class="empty">Chưa đủ dữ liệu.</p>')}
@@ -373,18 +380,6 @@
     return `<table><thead><tr><th class="l">Ngày</th><th>Mở</th><th>Cao</th><th>Thấp</th><th>Đóng</th><th>Khối lượng</th></tr></thead><tbody>${rows.map((b) => `<tr><td class="l num">${fmt.day(b.t)}</td><td class="num">${fmt.px(b.o)}</td><td class="num">${fmt.px(b.h)}</td><td class="num">${fmt.px(b.l)}</td><td class="num">${fmt.px(b.c)}</td><td class="num">${fmt.n(b.v)}</td></tr>`).join('')}</tbody></table>`;
   }
 
-  /* Ba đoạn POC vẽ đúng vị trí trên trục thời gian. Khung tuần gộp nến nên không vẽ. */
-  function pocSegments(u, bars) {
-    if (state.tf !== 'd' || !state.thData) return null;
-    const w = state.thData.window;
-    const m = state.thData.rows[u.s]?.w;
-    if (!m) return null;
-    const n = store.market.dates.length;
-    const at = (gi) => bars.findIndex((b) => b.gi >= gi);
-    return [[m[4], n - 3 * w, n - 2 * w - 1], [m[5], n - 2 * w, n - w - 1], [m[6], n - w, n - 1]]
-      .filter(([p]) => isNum(p)).map(([price, g0, g1]) => ({ price, a: Math.max(0, at(g0)), b: at(g1) < 0 ? bars.length - 1 : at(g1) }));
-  }
-
   function setChartData(data) {
     const u = data.u;
     const bars = state.tf === 'w' ? C.weekly(data.bars) : data.bars;
@@ -406,7 +401,7 @@
     const p = C.plan(u, { ...CHART_PLAN, entry: u.px });
     state.chart.setData(bars, series, {
       sr: data.levels, markers, profile: C.volumeProfile(bars, state.tf === 'w' ? 40 : 120),
-      plan: p ? { entry: p.entry, stop: p.stop, target: p.target } : null, poc: pocSegments(u, bars),
+      plan: p ? { entry: p.entry, stop: p.stop, target: p.target } : null,
     });
     state.markersAt = new Map();
     markers.forEach((m) => { state.markersAt.set(m.i, [...(state.markersAt.get(m.i) || []), m.key]); });
@@ -431,17 +426,13 @@
     if (state.chart) state.chart.destroy();
     state.chart = new window.StockChart($('#chart'), { onHover: updateReadout });
     setChartData(data);
-    $$('#tog-layers .tog').forEach((b) => b.addEventListener('click', async () => {
+    $$('#tog-layers .tog').forEach((b) => b.addEventListener('click', () => {
       const k = b.dataset.k;
       state.show[k] = !state.show[k];
       b.setAttribute('aria-pressed', state.show[k]);
       save.set('show', state.show);
       state.chart.show = state.show;
       $('#ema-legend').hidden = !state.show.ema;
-      if (k === 'poc' && state.show.poc && !state.thData) {
-        state.thData = await C.loadThong();
-        state.chart.layers.poc = pocSegments(u, state.bars);
-      }
       state.chart.draw();
     }));
     $$('#tf button').forEach((b) => b.addEventListener('click', () => {

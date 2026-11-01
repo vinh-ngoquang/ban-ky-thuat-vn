@@ -186,39 +186,7 @@ def risk_tables(d):
     return cone, stops
 
 
-def levels(h, l, c, v, atr):
-    """Hỗ trợ và kháng cự từ các đỉnh, đáy cục bộ trong 250 phiên, gộp theo cụm 0,75 ATR."""
-    n = len(c)
-    if n < 30 or not np.isfinite(atr) or atr <= 0:
-        return []
-    start = max(0, n - 250)
-    pivots = []
-    w = 4
-    for i in range(start + w, n - w):
-        if h[i] >= h[i - w:i + w + 1].max():
-            pivots.append((h[i], i, v[i]))
-        if l[i] <= l[i - w:i + w + 1].min():
-            pivots.append((l[i], i, v[i]))
-    if not pivots:
-        return []
-    pivots.sort()
-    clusters, cur = [], [pivots[0]]
-    for p in pivots[1:]:
-        if p[0] - cur[-1][0] <= 0.75 * atr:
-            cur.append(p)
-        else:
-            clusters.append(cur)
-            cur = [p]
-    clusters.append(cur)
-    last = c[-1]
-    out = []
-    for cl in clusters:
-        price = float(np.average([p[0] for p in cl]))
-        out.append({"price": round(price, 2), "touches": len(cl), "last": int(max(p[1] for p in cl)),
-                    "kind": "res" if price > last else "sup"})
-    res = sorted((x for x in out if x["kind"] == "res"), key=lambda x: x["price"])[:4]
-    sup = sorted((x for x in out if x["kind"] == "sup"), key=lambda x: -x["price"])[:4]
-    return res + sup
+levels = E.levels
 
 
 def main():
@@ -456,10 +424,7 @@ def picks_report(d, ev):
         if not liquid.iat[j]:
             continue
         score, trend, ext = d["score"].iat[t, j], d["trend"].iat[t, j], d["ext"].iat[t, j]
-        cell = E.thong_cell(d, t, j, E.THONG_WINDOW)
-        checks = [bool(d["t1"].iat[t, j]), bool(d["t2"].iat[t, j]), bool(d["t3"].iat[t, j]),
-                  bool(cell and E.base_ok(cell)), bool(cell and E.poc_rising(cell))]
-        count = sum(checks)
+        checks = [bool(d[k].iat[t, j]) for k in ("t1", "t2", "t3")]
         fails = []
         if not score >= E.POT_MIN_SCORE:
             fails.append("score")
@@ -473,7 +438,7 @@ def picks_report(d, ev):
         if d["veto_dump"].iat[t, j]:
             flags.append("dump")
         pillars = {k: num(d["pick_pillars"][k].iat[t, j], 1) for k in ("ben", "trend", "signal", "buy", "liq")}
-        pillars["thong"] = float(count * 20)
+        pillars["thong"] = num(sum(checks) * 100 / 3, 1)
         idx = np.flatnonzero(np.isfinite(C[:, j]))
         atr = float(d["atr"].iat[t, j])
         near = levels(H[idx, j], L[idx, j], C[idx, j], V[idx, j], atr)
@@ -527,12 +492,12 @@ def thong_long(d, m):
     """Mẫu tích lũy thường cần nhiều thời gian hơn, nên thử thêm cách giữ lệnh dài: 3 ATR, 3R, 60 phiên."""
     kept = (E.STOP_ATR, E.TARGET_R, E.MAX_HOLD)
     E.STOP_ATR, E.TARGET_R, E.MAX_HOLD = 3.0, 3.0, 60
-    picked = {k: d["signals"][k] for k in ("thong", "thong4", "random")}
+    picked = {k: d["signals"][k] for k in ("thong", "thong2", "random")}
     ev, _ = E.simulate({**d, "signals": picked}, m)
     E.STOP_ATR, E.TARGET_R, E.MAX_HOLD = kept
     rand = ev[(ev.setup == "random") & ev["complete"]]
     return {"stop": 3, "target": 3, "hold": 60, "thong": block(ev[ev.setup == "thong"], rand),
-            "thong4": block(ev[ev.setup == "thong4"], rand), "random": block(rand, rand)}
+            "thong2": block(ev[ev.setup == "thong2"], rand), "random": block(rand, rand)}
 
 
 def potential_report(d, m):
@@ -546,9 +511,7 @@ def potential_report(d, m):
         pts = d["pot"].iat[t, j]
         if not np.isfinite(pts):
             continue
-        cell = E.thong_cell(d, t, j, E.THONG_WINDOW)
-        checks = [bool(d["t1"].iat[t, j]), bool(d["t2"].iat[t, j]), bool(d["t3"].iat[t, j]),
-                  bool(cell and E.base_ok(cell)), bool(cell and E.poc_rising(cell))]
+        checks = [bool(d[k].iat[t, j]) for k in ("t1", "t2", "t3")]
         idx = np.flatnonzero(np.isfinite(C[:, j]))
         atr = float(d["atr"].iat[t, j])
         near = levels(H[idx, j], L[idx, j], C[idx, j], V[idx, j], atr)
@@ -588,14 +551,14 @@ def potential_report(d, m):
     E.STOP_ATR, E.TARGET_R, E.MAX_HOLD = kept
     rand = ev[(ev.setup == "random") & ev["complete"]]
     return {"rows": rows, "minScore": E.POT_MIN_SCORE, "maxExt": E.POT_MAX_EXT, "gradeA": E.POT_A, "gradeB": E.POT_B,
-            "thongPts": E.POT_THONG_PTS, "bonus": E.POT_BONUS, "window": E.THONG_WINDOW,
+            "thongPts": E.POT_THONG_PTS, "bonus": E.POT_BONUS,
             "long": {"a": block(ev[ev.setup == "pot_a"], rand), "b": block(ev[ev.setup == "pot_b"], rand), "random": block(rand, rand)},
             "portfolio": {"dates": when, "port": clean(nav[1:], 4), "base": clean(base[1:], 4), "ret": num(nav[-1] - 1), "baseRet": num(base[-1] - 1),
                           "dd": num(drawdown(nav)), "baseDd": num(drawdown(base)), "periods": len(when), "avgHeld": num(np.mean(held), 1)}}
 
 
 def thong_table(d, syms):
-    """Số đo thô của từng mã ở phiên cuối. Trang tự áp ngưỡng, nên người dùng đổi ngưỡng được ngay."""
+    """Kết quả 3 tiêu chí của từng mã ở phiên cuối, kèm số đo để giải thích."""
     t = len(d["c"]) - 1
     e10, e20 = d["ema10"].to_numpy(), d["ema20"].to_numpy()
     closes = d["c"].to_numpy()
@@ -608,11 +571,15 @@ def thong_table(d, syms):
             if e10[t - k, j] > e20[t - k, j] and e10[t - k - 1, j] <= e20[t - k - 1, j]:
                 cross = k
                 break
-        m = E.thong_cell(d, t, j, E.THONG_WINDOW)
-        base = [num(m["range"]), num(m["tight"]), num(m["vol"], 3), num(m["sup"], 3), num(m["p1"], 2), num(m["p2"], 2), num(m["p3"], 2)] if m else None
-        out[s] = {"e": [num(d[f"ema{n}"].iat[t, j], 3) for n in (10, 20, 50, 150, 200)], "c": num(closes[t, j], 2), "x": cross, "w": base}
-    return {"window": E.THONG_WINDOW, "maxSpread": E.THONG_MAX_SPREAD,
-            "maxRange": E.THONG_MAX_RANGE, "tight": E.THONG_TIGHT, "rows": out}
+        atr = float(d["atr"].iat[t, j])
+        res = E.nearest_res(d, t, j)
+        out[s] = {"e": [num(d[f"ema{n}"].iat[t, j], 3) for n in (10, 20, 50, 150, 200)], "c": num(closes[t, j], 2), "x": cross,
+                  "p": [bool(d[k].iat[t, j]) for k in ("t1", "t2", "t3")], "rsi": num(d["rsi"].iat[t, j], 1), "peakRsi": num(d["peak_rsi"].iat[t, j], 1),
+                  "peakPx": num(d["peak_px"].iat[t, j], 2), "bounce": bool(d["bounce"].iat[t, j]), "res": res,
+                  "resAtr": num((res - closes[t, j]) / atr, 2) if res is not None and atr > 0 else None,
+                  "vol": num(d["v"].iat[t, j], 0), "downVol": num(d["down_vol"].iat[t, j], 0)}
+    return {"rsiGap": E.THONG_RSI_GAP, "nearAtr": E.THONG_NEAR_ATR, "touch": E.THONG_TOUCH, "touchDays": E.THONG_TOUCH_DAYS,
+            "downDays": E.THONG_DOWN_DAYS, "peakDays": E.THONG_PEAK_LOOKBACK, "rows": out}
 
 
 def LIMIT(ex):
