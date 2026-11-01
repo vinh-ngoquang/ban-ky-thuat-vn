@@ -31,7 +31,7 @@ Tài liệu này mô tả toàn bộ dashboard: dữ liệu, công thức, chỉ
 - **Tín hiệu kỹ thuật kinh điển gần như không có lợi thế** trong 3 năm dữ liệu sau khi trừ phí. Trong các tín hiệu đơn lẻ, chỉ "Dẫn dắt gần đỉnh" đạt nhãn "Có bằng chứng", và mức này vẫn mỏng.
 - **Kết hợp nhiều phương pháp cho kết quả tốt nhất:** Mã tiềm năng hạng A đạt +0,28R, vượt ngẫu nhiên +0,43R, nhưng vẫn thua khoảng một nửa số lệnh, chỉ có 136 lệnh và được ghép sau khi đã biết từng phần có ích.
 - **Yếu tố ổn định nhất là biến động:** mã biến động cao thua thị trường rõ rệt ở cả hai giai đoạn kiểm tra. Điểm Bền được xây trên phát hiện này.
-- **Chưa thắng rõ VNINDEX:** cùng giai đoạn, nắm giữ VNINDEX đạt +38,6% (chưa tính cổ tức). Danh mục 10 mã theo phong cách Phòng thủ đạt +35,9%, Cân bằng +23,7%, và Phòng thủ là số tốt nhất sau khi thử 4 phong cách.
+- **Chưa thắng rõ VNINDEX:** cùng giai đoạn, nắm giữ VNINDEX đạt +36,8% (chưa tính cổ tức). Danh mục 10 mã theo phong cách Phòng thủ đạt trung bình +26,1%, Cân bằng +17,8%, và Phòng thủ là số tốt nhất sau khi thử 4 phong cách. Mỗi số là trung bình 20 đường lệch nhau 1 phiên, vì một đường riêng lẻ dao động rất rộng: Phòng thủ từ +11,6% đến +59,3%.
 - **Rủi ro dự báo được tốt hơn lợi nhuận:** dải giá theo ATR và xác suất chạm cắt lỗ giữ được độ chính xác trên giai đoạn kiểm tra độc lập.
 - **Thị trường đang hẹp:** một năm qua VNINDEX +3,3% trong khi cổ phiếu thanh khoản điển hình giảm khoảng 17%.
 - **Điểm mua của Thông** chưa tách được khỏi vào lệnh ngẫu nhiên: −0,14R so với −0,14R. Bên trong Điểm kết hợp, tiêu chí này có ích hơn khi đứng riêng.
@@ -210,13 +210,14 @@ Hai cột cuối là lợi suất vượt thị trường sau 20 phiên.
 ### Danh mục kiểm chứng
 
 - Giữ 20% mã có Điểm Bền cao nhất, đồng tỷ trọng, đổi danh mục mỗi 20 phiên.
-- Trừ phí 0,4% trên phần danh mục thay đổi. Vòng quay trung bình 34% mỗi kỳ.
-- So với toàn bộ mã thanh khoản đồng tỷ trọng, 27 kỳ từ 12/09/2024.
+- Trừ phí 0,4% trên phần danh mục thay đổi. Vòng quay trung bình 33% mỗi kỳ.
+- So với toàn bộ mã thanh khoản đồng tỷ trọng, mỗi đường khoảng 26 đến 27 kỳ.
+- Số trong bảng là trung bình của 20 đường, mỗi đường bắt đầu lệch nhau 1 phiên. Một đường riêng lẻ phụ thuộc mạnh vào ngày đổi danh mục: khi dữ liệu trượt 1 phiên, đường Phòng thủ đơn lẻ từng đổi từ +35,9% thành +19,8%. Với 20 đường, dịch 1 phiên chỉ đổi khoảng 0,1 điểm %.
 
-| | Lợi suất | Sụt giảm tối đa |
-|---|---:|---:|
-| Danh mục Điểm Bền | +29,5% | −9,9% |
-| Toàn thị trường | +0,4% | −20,5% |
+| | Lợi suất | Dao động giữa các đường | Sụt giảm tối đa |
+|---|---:|---:|---:|
+| Danh mục Điểm Bền | +23,2% | +13,2% đến +32,9% | −9,6% |
+| Toàn thị trường | −4,5% | | −22,2% |
 
 Kết quả này có thể lạc quan vì yếu tố được chọn sau khi xem dữ liệu.
 
@@ -470,7 +471,7 @@ Chi tiết hạng A:
 - Giai đoạn trước +0,32R, 250 phiên cuối +0,22R.
 - Theo trạng thái thị trường: Lan tỏa +0,43R (46 lệnh), Suy yếu +0,38R (68 lệnh), Trung tính −0,32R (22 lệnh).
 
-Danh mục 10 mã điểm cao nhất, đổi mỗi 20 phiên, đạt +23,3% với sụt giảm tối đa −17,1%. Danh mục nhóm Điểm Bền đạt +29,5% với sụt giảm −9,9%, nên ở cấp danh mục, phần kết hợp chưa cho thấy vượt trội.
+Danh mục 10 mã điểm cao nhất, đổi mỗi 20 phiên, đạt trung bình +21,8% với sụt giảm tối đa −13,5%. Danh mục nhóm Điểm Bền đạt +23,2% với sụt giảm −9,6%, nên ở cấp danh mục, phần kết hợp chưa cho thấy vượt trội.
 
 Quy tắc được ghép sau khi đã biết từng phần có ích, nên kết quả có thể lạc quan. Danh sách cũng chưa xét báo cáo tài chính hay tin tức.
 
@@ -507,14 +508,14 @@ Cờ gồm: vừa gãy xu hướng hoặc giao cắt tử thần trong 3 phiên,
 
 6 trụ chỉ xếp thứ tự trong từng hạng. Phiên bản đầu dùng ngưỡng 70 điểm 6 trụ làm hạng Ưu tiên nhưng không chọn lọc được: 1.745 lệnh, kỳ vọng −0,01R, nên đã bỏ.
 
-| Phong cách | Bền | Xu hướng | Thông | Tín hiệu | Điểm mua | Thanh khoản | Lợi suất 10 mã | Sụt giảm |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|
-| Cân bằng | 35 | 20 | 15 | 15 | 10 | 5 | +23,7% | −15,2% |
-| Phòng thủ | 55 | 15 | 5 | 5 | 10 | 10 | +35,9% | −15,8% |
-| Theo xu hướng | 15 | 35 | 5 | 30 | 5 | 10 | +12,5% | −19,1% |
-| Theo Thông | 20 | 15 | 45 | 5 | 10 | 5 | +7,5% | −20,7% |
+| Phong cách | Bền | Xu hướng | Thông | Tín hiệu | Điểm mua | Thanh khoản | Lợi suất 10 mã | Dao động | Sụt giảm |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| Cân bằng | 35 | 20 | 15 | 15 | 10 | 5 | +17,8% | −2,1% đến +48,9% | −14,8% |
+| Phòng thủ | 55 | 15 | 5 | 5 | 10 | 10 | +26,1% | +11,6% đến +59,3% | −11,9% |
+| Theo xu hướng | 15 | 35 | 5 | 30 | 5 | 10 | +18,5% | +0,3% đến +38,4% | −16,2% |
+| Theo Thông | 20 | 15 | 45 | 5 | 10 | 5 | +9,0% | −11,1% đến +31,3% | −16,8% |
 
-Cùng kỳ: VNINDEX +38,6%, mọi mã thanh khoản +0,4%. Giữ 5 mã thay vì 10 mã theo Cân bằng đạt +18,2%, sụt −17,7%.
+Lợi suất và sụt giảm là trung bình 20 đường lệch nhau 1 phiên, dao động là đường thấp nhất đến cao nhất. Cùng kỳ: VNINDEX +36,8%, sụt −11,4%, mọi mã thanh khoản −4,5%. Giữ 5 mã thay vì 10 mã theo Cân bằng đạt +19,4%, sụt −16,6%, dao động −13,9% đến +50,6%.
 
 ### Giỏ so sánh
 

@@ -351,10 +351,10 @@
     $('#pk-vn-body').innerHTML = `<h3 class="ev-h">Có thắng nắm giữ VNINDEX không?</h3>
       ${kit.legend([['Cân bằng', 'var(--fg)'], ['VNINDEX', 'var(--s-e50)'], ['Mọi mã thanh khoản', 'var(--s-ma200)']])}
       <div id="pk-vn-chart"></div>
-      <div class="table-wrap" style="max-height:none;margin-top:8px"><table><thead><tr><th class="l">Giữ 10 mã xếp theo</th><th>Lợi suất</th><th>Sụt giảm</th></tr></thead><tbody>
-      ${Object.values(P.styles).map((s) => `<tr><td class="l">${esc(s.name)}</td><td class="num ${toneOf(s.ret)}">${fmt.pct(s.ret)}</td><td class="num">${fmt.pct(s.dd, 0)}</td></tr>`).join('')}
-      <tr><td class="l"><b>Nắm giữ VNINDEX</b></td><td class="num"><b>${fmt.pct(T.vnRet)}</b></td><td class="num">${fmt.pct(T.vnDd, 0)}</td></tr></tbody></table></div>
-      <p class="note" style="margin-top:6px">${T.periods} kỳ từ ${fmt.day(T.start)}, đã trừ phí. ${beat ? `${beat} trên ${count} cách xếp nhỉnh hơn VNINDEX, có thể một phần do may rủi.` : `Cả ${count} cách xếp đều chưa thắng VNINDEX.`}</p>`;
+      <div class="table-wrap" style="max-height:none;margin-top:8px"><table><thead><tr><th class="l">Giữ 10 mã xếp theo</th><th>Lợi suất</th><th>Dao động</th><th>Sụt giảm</th></tr></thead><tbody>
+      ${Object.values(P.styles).map((s) => `<tr><td class="l">${esc(s.name)}</td><td class="num ${toneOf(s.ret)}">${fmt.pct(s.ret)}</td><td class="num">${pct(s.retLo)} đến ${pct(s.retHi)}</td><td class="num">${fmt.pct(s.dd, 0)}</td></tr>`).join('')}
+      <tr><td class="l"><b>Nắm giữ VNINDEX</b></td><td class="num"><b>${fmt.pct(T.vnRet)}</b></td><td class="num"></td><td class="num">${fmt.pct(T.vnDd, 0)}</td></tr></tbody></table></div>
+      <p class="note" style="margin-top:6px">Lợi suất và sụt giảm là trung bình của ${T.starts} đường, mỗi đường bắt đầu lệch nhau 1 phiên, vì ngày đổi danh mục ảnh hưởng mạnh tới kết quả. Dao động là đường thấp nhất đến cao nhất, biểu đồ vẽ đường gần trung bình nhất. Mỗi đường khoảng ${T.periods} kỳ từ ${fmt.day(T.start)}, đã trừ phí. ${beat ? `${beat} trên ${count} cách xếp nhỉnh hơn VNINDEX, có thể một phần do may rủi.` : `Cả ${count} cách xếp đều chưa thắng VNINDEX.`}</p>`;
     kit.linePlot($('#pk-vn-chart'), {
       dates: T.dates, height: 180, fmtY: pct, refLines: [{ v: 0 }],
       series: [{ name: 'Mọi mã thanh khoản', values: T.base.map((v) => v - 1), color: 'var(--s-ma200)' }, { name: 'VNINDEX', values: T.vn.map((v) => v - 1), color: 'var(--s-e50)' }, { name: 'Cân bằng', values: T.port.map((v) => v - 1), color: 'var(--fg)', width: 2 }],

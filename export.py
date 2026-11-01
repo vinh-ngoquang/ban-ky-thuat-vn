@@ -14,6 +14,8 @@ ROOT = pathlib.Path(__file__).parent
 SITE = ROOT / "site"
 DATA = SITE / "data"
 SHARD_SIZE = 16
+REBAL_START = 210              # phiên đầu tiên đủ lịch sử để chấm điểm
+REBAL_DAYS = 20                # đổi danh mục mỗi số phiên này, cũng là số ngày bắt đầu đem ra lấy trung bình
 HORIZONS = (5, 10, 20)
 STOP_KS = (1.5, 2, 2.5, 3, 4)
 
@@ -121,35 +123,66 @@ def quintiles(d, m):
     return res
 
 
-def portfolio(d, m):
-    """Danh mục kiểm chứng: 20% mã điểm cao nhất, tái cân bằng mỗi 20 phiên."""
+def rebalance_path(d, pick, first, index):
+    """Một đường danh mục đồng tỷ trọng: chọn mã ở phiên first, đổi mỗi REBAL_DAYS phiên, so với toàn thị trường và VNINDEX."""
     c, o, liquid = d["c"], d["o"], d["liquid"]
     dates = c.index
-    score = d["score"]
-    nav, base, when, churns = [1.0], [1.0], [], []
-    hold = None
-    rebals = list(range(210, len(dates) - 1, 20))
-    for t in rebals:
-        s = score.iloc[t].dropna()
-        if s.empty:
+    nav, base, vn, when, held, churns = [1.0], [1.0], [1.0], [], [], []
+    hold = set()
+    for i in range(first, len(dates) - 1, REBAL_DAYS):
+        top = pick(i)
+        end = min(i + REBAL_DAYS + 1, len(dates) - 1)
+        if end <= i + 1:
             continue
-        top = list(s[s >= s.quantile(0.8)].index)
-        churn = 1.0 if hold is None else 1 - len(set(top) & hold) / max(len(top), 1)
-        hold = set(top)
-        end = min(t + 21, len(dates) - 1)
-        if end <= t + 1:
-            continue
-        r = (c[top].iloc[end] / o[top].iloc[t + 1] - 1).mean()
-        uni = list(liquid.iloc[t][liquid.iloc[t]].index)
-        ru = (c[uni].iloc[end] / o[uni].iloc[t + 1] - 1).mean()
+        churn = (1 - len(set(top) & hold) / len(top)) if top else (1.0 if hold else 0.0)
+        r = (c[top].iloc[end] / o[top].iloc[i + 1] - 1).mean() if top else 0.0
+        uni = list(liquid.iloc[i][liquid.iloc[i]].index)
+        ru = (c[uni].iloc[end] / o[uni].iloc[i + 1] - 1).mean()
         nav.append(nav[-1] * (1 + r - churn * E.COST))
         base.append(base[-1] * (1 + ru))
+        if index is not None:
+            vn.append(vn[-1] * index.iloc[end] / index.iloc[i + 1])
         when.append(str(dates[end].date()))
+        held.append(len(top))
         churns.append(churn)
+        hold = set(top)
     drawdown = lambda x: float((pd.Series(x) / pd.Series(x).cummax() - 1).min())
-    return {"start": str(dates[rebals[0] + 1].date()), "dates": when, "port": clean(nav[1:], 4), "base": clean(base[1:], 4),
-            "ret": num(nav[-1] - 1), "baseRet": num(base[-1] - 1), "dd": num(drawdown(nav)), "baseDd": num(drawdown(base)),
-            "turnover": num(np.mean(churns)), "periods": len(when)}
+    out = {"dates": when, "port": nav[1:], "base": base[1:], "ret": nav[-1] - 1, "baseRet": base[-1] - 1, "dd": drawdown(nav), "baseDd": drawdown(base),
+           "periods": len(when), "avgHeld": float(np.mean(held)), "turnover": float(np.mean(churns)), "start": str(dates[first + 1].date())}
+    if index is not None:
+        out.update(vn=vn[1:], vnRet=vn[-1] - 1, vnDd=drawdown(vn))
+    return out
+
+
+def rebalance_runs(d, pick):
+    """Chạy đủ REBAL_DAYS ngày bắt đầu rồi lấy trung bình, vì một đường riêng lẻ lệch 1 phiên có thể đổi kết quả hơn 15 điểm %.
+
+    ret, dd và các số so sánh là trung bình các đường. retLo, retHi là đường thấp nhất và cao nhất. port, base, vn là đường gần trung bình nhất, chỉ để vẽ.
+    """
+    path = E.CACHE / "vnindex.pkl"
+    index = None
+    if path.exists():
+        raw = pd.read_pickle(path)
+        index = raw.set_index(pd.to_datetime(raw["date"]))["close"].astype(float).reindex(d["c"].index).ffill()
+    runs = [rebalance_path(d, pick, REBAL_START + k, index) for k in range(REBAL_DAYS)]
+    mean = {k: float(np.mean([x[k] for x in runs])) for k in ("ret", "baseRet", "dd", "baseDd", "avgHeld", "turnover", *(("vnRet", "vnDd") if index is not None else ()))}
+    near = min(runs, key=lambda x: abs(x["ret"] - mean["ret"]))
+    rets = [x["ret"] for x in runs]
+    out = {"dates": near["dates"], "port": clean(near["port"], 4), "base": clean(near["base"], 4), "periods": near["periods"], "start": near["start"],
+           "starts": len(runs), "retLo": num(min(rets)), "retHi": num(max(rets)), **{k: num(v) for k, v in mean.items()}}
+    if index is not None:
+        out["vn"] = clean(near["vn"], 4)
+    return out
+
+
+def portfolio(d, m):
+    """Danh mục kiểm chứng: 20% mã điểm cao nhất."""
+    score = d["score"]
+
+    def pick(t):
+        s = score.iloc[t].dropna()
+        return list(s[s >= s.quantile(0.8)].index) if len(s) else []
+    return rebalance_runs(d, pick)
 
 
 def risk_tables(d):
@@ -315,39 +348,8 @@ def main():
 
 
 def topn_portfolio(d, score, n=10):
-    """Giữ n mã điểm cao nhất, đổi mỗi 20 phiên, so với toàn thị trường và VNINDEX cùng thời điểm."""
-    c, o, liquid = d["c"], d["o"], d["liquid"]
-    dates = c.index
-    path = E.CACHE / "vnindex.pkl"
-    index = None
-    if path.exists():
-        raw = pd.read_pickle(path)
-        index = raw.set_index(pd.to_datetime(raw["date"]))["close"].astype(float).reindex(dates).ffill()
-    nav, base, vn, when, held = [1.0], [1.0], [1.0], [], []
-    hold = set()
-    for i in range(210, len(dates) - 1, 20):
-        ranked = score.iloc[i].dropna().sort_values(ascending=False)
-        top = list(ranked.index[:n])
-        end = min(i + 21, len(dates) - 1)
-        if end <= i + 1:
-            continue
-        churn = (1 - len(set(top) & hold) / len(top)) if top else (1.0 if hold else 0.0)
-        r = (c[top].iloc[end] / o[top].iloc[i + 1] - 1).mean() if top else 0.0
-        uni = list(liquid.iloc[i][liquid.iloc[i]].index)
-        ru = (c[uni].iloc[end] / o[uni].iloc[i + 1] - 1).mean()
-        nav.append(nav[-1] * (1 + r - churn * E.COST))
-        base.append(base[-1] * (1 + ru))
-        if index is not None:
-            vn.append(vn[-1] * index.iloc[end] / index.iloc[i + 1])
-        when.append(str(dates[end].date()))
-        held.append(len(top))
-        hold = set(top)
-    drawdown = lambda x: float((pd.Series(x) / pd.Series(x).cummax() - 1).min())
-    out = {"dates": when, "port": clean(nav[1:], 4), "base": clean(base[1:], 4), "ret": num(nav[-1] - 1), "baseRet": num(base[-1] - 1),
-           "dd": num(drawdown(nav)), "baseDd": num(drawdown(base)), "periods": len(when), "avgHeld": num(np.mean(held), 1), "start": str(dates[211].date())}
-    if index is not None:
-        out.update(vn=clean(vn[1:], 4), vnRet=num(vn[-1] - 1), vnDd=num(drawdown(vn)))
-    return out
+    """Giữ n mã điểm cao nhất."""
+    return rebalance_runs(d, lambda t: list(score.iloc[t].dropna().sort_values(ascending=False).index[:n]))
 
 
 def vn_series(d):
@@ -478,11 +480,11 @@ def picks_report(d, ev):
     for key, cfg in E.PICK_STYLES.items():
         f = E.pick_score(d, cfg["w"]).where(clean)
         p = topn_portfolio(d, f, 10)
-        styles[key] = {"name": cfg["name"], "note": cfg["note"], "w": cfg["w"], "ret": p["ret"], "dd": p["dd"]}
+        styles[key] = {"name": cfg["name"], "note": cfg["note"], "w": cfg["w"], "ret": p["ret"], "dd": p["dd"], "retLo": p["retLo"], "retHi": p["retHi"]}
     f = d["pick_pts"].where(clean)
     top10, top5 = topn_portfolio(d, f, 10), topn_portfolio(d, f, 5)
     return {"rows": rows, "funnel": funnel, "gradeA": E.POT_A, "gradeB": E.POT_B, "minScore": E.POT_MIN_SCORE, "maxExt": E.POT_MAX_EXT,
-            "styles": styles, "top10": top10, "top5": {k: top5[k] for k in ("ret", "dd")},
+            "styles": styles, "top10": top10, "top5": {k: top5[k] for k in ("ret", "dd", "retLo", "retHi")},
             "stress": {"first": stress("pot_a"), "second": stress("pot_b"), "random": stress("random")},
             "quarters": quarters, "topShare": num(wins / a["r"].sum() if a["r"].sum() > 0 else None, 2),
             "avgPerDay": num((d["pot"] >= E.POT_A).sum(axis=1).mean(), 2), "dump": E.PICK_DUMP, "fin": fin_report(d), **vn_series(d)}
@@ -524,26 +526,6 @@ def potential_report(d, m):
                      "stop": num(E.STOP_ATR * atr / C[t, j])})
     rows.sort(key=lambda r: -r["pts"])
 
-    c, o, liquid, pot = d["c"], d["o"], d["liquid"], d["pot"]
-    dates = c.index
-    nav, base, when, held = [1.0], [1.0], [], []
-    hold = set()
-    for i in range(210, len(dates) - 1, 20):
-        ranked = pot.iloc[i].dropna().sort_values(ascending=False)
-        top = list(ranked.index[:10])
-        end = min(i + 21, len(dates) - 1)
-        if end <= i + 1:
-            continue
-        churn = (1 - len(set(top) & hold) / len(top)) if top else (1.0 if hold else 0.0)
-        r = (c[top].iloc[end] / o[top].iloc[i + 1] - 1).mean() if top else 0.0
-        uni = list(liquid.iloc[i][liquid.iloc[i]].index)
-        ru = (c[uni].iloc[end] / o[uni].iloc[i + 1] - 1).mean()
-        nav.append(nav[-1] * (1 + r - churn * E.COST))
-        base.append(base[-1] * (1 + ru))
-        when.append(str(dates[end].date()))
-        held.append(len(top))
-        hold = set(top)
-    drawdown = lambda x: float((pd.Series(x) / pd.Series(x).cummax() - 1).min())
     kept = (E.STOP_ATR, E.TARGET_R, E.MAX_HOLD)
     E.STOP_ATR, E.TARGET_R, E.MAX_HOLD = 3.0, 3.0, 60
     picked = {k: d["signals"][k] for k in ("pot_a", "pot_b", "random")}
@@ -553,8 +535,7 @@ def potential_report(d, m):
     return {"rows": rows, "minScore": E.POT_MIN_SCORE, "maxExt": E.POT_MAX_EXT, "gradeA": E.POT_A, "gradeB": E.POT_B,
             "thongPts": E.POT_THONG_PTS, "bonus": E.POT_BONUS,
             "long": {"a": block(ev[ev.setup == "pot_a"], rand), "b": block(ev[ev.setup == "pot_b"], rand), "random": block(rand, rand)},
-            "portfolio": {"dates": when, "port": clean(nav[1:], 4), "base": clean(base[1:], 4), "ret": num(nav[-1] - 1), "baseRet": num(base[-1] - 1),
-                          "dd": num(drawdown(nav)), "baseDd": num(drawdown(base)), "periods": len(when), "avgHeld": num(np.mean(held), 1)}}
+            "portfolio": topn_portfolio(d, d["pot"], 10)}
 
 
 def thong_table(d, syms):
