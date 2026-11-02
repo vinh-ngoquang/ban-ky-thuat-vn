@@ -252,8 +252,8 @@
     const qs = q ? R.quintiles[q - 1] : null;
     const recent = [...events].reverse().find((e) => e.gi >= store.market.dates.length - 4 && !INTERNAL.test(e.key));
     const s = recent ? C.setup(recent.key) : null;
-    const liqTone = u.adv >= 10 ? 'good' : u.adv >= 3 ? 'warn' : 'bad';
-    const liqText = u.adv >= 10 ? 'Dễ giao dịch' : u.adv >= 3 ? 'Vừa phải' : 'Rất mỏng';
+    const liqTone = u.adv >= 30 ? 'good' : u.adv >= R.minAdv ? 'warn' : 'bad';
+    const liqText = u.adv >= 30 ? 'Dễ giao dịch' : u.adv >= R.minAdv ? 'Vừa phải' : 'Mỏng';
     const dScore = isNum(u.score) && isNum(u.score5) ? u.score - u.score5 : null;
     const extTone = u.ext > 4 ? 'bad' : u.ext > 2.5 ? 'warn' : '';
     return `<section class="card" id="doc-nhanh"><div class="card-head"><h2>Đọc nhanh</h2></div>

@@ -11,7 +11,7 @@ import pandas as pd
 ROOT = pathlib.Path(__file__).parent
 CACHE = ROOT / "cache"
 
-MIN_ADV = 3.0          # tỷ đồng/phiên: ngưỡng thanh khoản để một mã được tính vào thị trường
+MIN_ADV = 10.0         # tỷ đồng/phiên: ngưỡng thanh khoản để một mã được tính vào thị trường. 20 tỷ làm danh mục kém đi rõ
 COST = 0.004           # phí mua + phí bán + thuế bán, khứ hồi
 MIN_RISK = 0.01        # bỏ lệnh có khoảng cắt lỗ dưới 1% giá vào
 STOP_ATR = 2.0         # cắt lỗ cách giá vào 2 ATR

@@ -17,6 +17,7 @@
   const THONG_LABELS = ['EMA xếp tầng', 'RSI gần đỉnh trước', 'Điểm mua'];
   const SIGNAL_LEVELS = { 100: ['good', 'Dẫn dắt'], 60: ['warn', 'Kéo về hoặc Giao cắt vàng'], 30: ['', 'Không có'] };   // theo điểm trụ Tín hiệu
   const BASKET_MIN = 8, BASKET_MAX = 12, BASKET_TARGET = 10, CORR_SESSIONS = 250;
+  const EASY_ADV = 30;   // tỷ đồng/phiên, bộ lọc mã dễ mua bán, cao hơn ngưỡng thanh khoản chung
 
   let kit, state;
 
@@ -51,7 +52,7 @@
     const entry = entryOf(r, u);
     const quality = { label: 'Chất lượng', tone: q >= 4 ? 'good' : q === 3 ? 'warn' : 'bad', text: q >= 4 ? 'Bền' : q === 3 ? 'Trung bình' : 'Kém bền', note: `Điểm Bền ${fmt.n(u.score)}, nhóm ${q} trên 5` };
     const trend = { label: 'Xu hướng', tone: u.trend === 'strong' || u.trend === 'up' ? 'good' : u.trend === 'down' ? 'bad' : 'warn', text: C.TREND[u.trend] || '–', note: { strong: 'Giá trên MA50, MA50 trên MA200', up: 'Giá và MA50 trên MA200', side: 'Chưa có hướng rõ', down: 'Giá dưới MA50, MA50 dưới MA200', new: 'Chưa đủ 200 phiên' }[u.trend] || '' };
-    const liq = { label: 'Thanh khoản', tone: u.adv >= 10 ? 'good' : 'warn', text: u.adv >= 10 ? 'Dễ mua bán' : 'Hơi mỏng', note: `${fmt.ty(u.adv)} mỗi phiên` };
+    const liq = { label: 'Thanh khoản', tone: u.adv >= EASY_ADV ? 'good' : 'warn', text: u.adv >= EASY_ADV ? 'Dễ mua bán' : 'Vừa phải', note: `${fmt.ty(u.adv)} mỗi phiên` };
     const checks = [quality, trend, { label: 'Điểm vào', ...entry }, liq];
     const map = {
       first: entry.tone === 'good'
@@ -82,7 +83,7 @@
     const lens = LENSES.find((l) => l.id === o.lens) || LENSES[0];
     const q = fold(o.q.trim());
     return lensRows(lens)
-      .filter((r) => (!o.sector || r.u.sector === o.sector) && (!o.exchange || r.u.ex === o.exchange) && (!o.easy || r.u.adv >= 10) && (!q || r.u.key.includes(q)))
+      .filter((r) => (!o.sector || r.u.sector === o.sector) && (!o.exchange || r.u.ex === o.exchange) && (!o.easy || r.u.adv >= EASY_ADV) && (!q || r.u.key.includes(q)))
       .map((r) => ({ ...r, pts: scoreOf(r) }))
       .sort((a, b) => TIERS[a.tier] - TIERS[b.tier] || b.pts - a.pts);
   }
@@ -106,7 +107,7 @@
           <label>Ngành <select id="pk-sector"><option value="">Tất cả</option>${sectors.map((x) => `<option ${o.sector === x ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select></label>
           <label>Sàn <select id="pk-exchange"><option value="">Tất cả</option>${exchanges.map((x) => `<option ${o.exchange === x ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select></label>
           <label>Xếp theo <select id="pk-style">${Object.entries(P.styles).map(([k, s]) => `<option value="${k}" ${o.style === k ? 'selected' : ''}>${esc(s.name)}</option>`).join('')}</select></label>
-          <label class="check"><input id="pk-easy" type="checkbox" ${o.easy ? 'checked' : ''}> Chỉ mã từ 10 tỷ mỗi phiên</label>
+          <label class="check"><input id="pk-easy" type="checkbox" ${o.easy ? 'checked' : ''}> Chỉ mã từ ${EASY_ADV} tỷ mỗi phiên</label>
           <input id="pk-q" type="search" aria-label="Lọc danh sách" placeholder="Lọc theo mã, tên" value="${esc(o.q)}">
           <span class="note" id="pk-count" aria-live="polite"></span>
         </div>
