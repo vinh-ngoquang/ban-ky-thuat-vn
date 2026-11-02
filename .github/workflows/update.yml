@@ -2,7 +2,7 @@ name: Cập nhật dashboard
 
 # Có hai đường chạy:
 #   ui   : chỉ đổi giao diện. Dùng lại dữ liệu đang có trên trang, 1 đến 2 phút, không gọi FinLens.
-#   full : tải dữ liệu và tính lại. Lịch 18:00 khoảng 25 phút, chạy tay buổi sáng có thể hơn 1 giờ.
+#   full : tải dữ liệu và tính lại. Lịch 18:17 khoảng 25 phút, chạy tay buổi sáng có thể hơn 1 giờ.
 on:
   push:
     branches: [main]
@@ -11,7 +11,9 @@ on:
       - "build_page.py"
       - "make_public.py"
   schedule:
-    - cron: "0 11 * * 1-5"    # 18:00 giờ Việt Nam, thứ Hai đến thứ Sáu
+    # GitHub chạy lịch theo khả năng, hay trễ hoặc bỏ hẳn lần chạy đúng đầu giờ, nên tránh phút 00 và có lần chạy bù
+    - cron: "17 11 * * 1-5"   # 18:17 giờ Việt Nam, thứ Hai đến thứ Sáu
+    - cron: "43 13 * * 1-5"   # 20:43, chạy bù, tự bỏ qua nếu hôm nay đã cập nhật
   workflow_dispatch:
     inputs:
       mode:
@@ -33,7 +35,23 @@ env:
   MODE: ${{ github.event_name == 'push' && 'ui' || inputs.mode || 'full' }}
 
 jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      skip: ${{ steps.check.outputs.skip }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: check
+        run: |
+          if [ "${{ github.event.schedule }}" = "43 13 * * 1-5" ] && grep -q "$(date -u +%Y-%m-%d)" LAST_UPDATE; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
   update:
+    needs: check
+    if: needs.check.outputs.skip != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 150      # đường full buổi sáng có thể hơn 1 giờ
     environment:

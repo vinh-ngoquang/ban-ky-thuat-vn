@@ -594,7 +594,7 @@ Xem cần bao nhiêu vốn, lỗ nếu mọi mã chạm cắt lỗ, 20 phiên t�
 
 | Mục | Giá trị |
 |---|---|
-| Lịch | 18:00 giờ Việt Nam, thứ Hai đến thứ Sáu |
+| Lịch | 18:17 giờ Việt Nam, thứ Hai đến thứ Sáu. Chạy bù lúc 20:43, tự bỏ qua nếu hôm nay đã cập nhật, vì GitHub chạy lịch theo khả năng và có thể bỏ lần chạy |
 | Nơi chạy | GitHub Actions, không cần bật máy |
 | Thời gian | Khoảng 25 phút lúc 18:00. SDK rải đều hạn mức đến nửa đêm, nên chạy càng sớm trong ngày càng lâu: buổi sáng có thể hơn 1 giờ, gần nửa đêm khoảng 6 phút |
 | Hạn mức | Khoảng 130 request mỗi lần, trên 2.000 request/ngày |

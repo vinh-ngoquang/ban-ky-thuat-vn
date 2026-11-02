@@ -2,7 +2,7 @@
 
 Dashboard phân tích kỹ thuật cổ phiếu Việt Nam theo 3 bước: tìm mã, xem từng mã và dựng giỏ, kèm kiểm chứng lịch sử.
 
-Trang được GitHub Actions dựng lại lúc 18:00 giờ Việt Nam, từ thứ Hai đến thứ Sáu, dùng dữ liệu `eod.stock.ohlcv` của FinLens.
+Trang được GitHub Actions dựng lại lúc 18:17 giờ Việt Nam, từ thứ Hai đến thứ Sáu, có lần chạy bù lúc 20:43 nếu GitHub bỏ lịch, dùng dữ liệu `eod.stock.ohlcv` của FinLens.
 
 Đây là công cụ phân tích chung dựa trên quy tắc, không phải tư vấn đầu tư. Hiệu quả trong quá khứ không bảo đảm kết quả tương lai.
 

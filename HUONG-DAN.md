@@ -26,7 +26,7 @@ Khi di chuyển thư mục này, hãy di chuyển cả thư mục `cache`, nếu
 ## Đưa thay đổi lên trang công khai
 
 - **Chỉ đổi giao diện** (`src/`, `build_page.py`, `make_public.py`): `git push` là đủ. GitHub tự dựng lại trong 1 đến 2 phút, dùng lại dữ liệu đang có và không gọi FinLens.
-- **Đổi công thức, ngưỡng hoặc dữ liệu cho trang** (`engine.py`, `export.py`): sau khi `git push`, chạy `gh workflow run update.yml`. Lần này phải tải và tính lại, khoảng 25 phút lúc 18:00, hơn 1 giờ nếu chạy buổi sáng. Nếu không chạy tay, thay đổi sẽ có ở lần 18:00 kế tiếp.
+- **Đổi công thức, ngưỡng hoặc dữ liệu cho trang** (`engine.py`, `export.py`): sau khi `git push`, chạy `gh workflow run update.yml`. Lần này phải tải và tính lại, khoảng 25 phút lúc 18:00, hơn 1 giờ nếu chạy buổi sáng. Nếu không chạy tay, thay đổi sẽ có ở lần chạy theo lịch kế tiếp (18:17).
 - **Giao diện cần thêm dữ liệu mới:** đổi cả `src/` và `export.py` thì vẫn phải chạy đầy đủ như trên. Thêm `[skip ci]` vào nội dung commit để đường nhanh không đăng giao diện mới với dữ liệu cũ.
 
 ## Đổi quy tắc
